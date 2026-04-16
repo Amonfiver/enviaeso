@@ -2,15 +2,17 @@
 ================================================================================
 PROPOSITO DEL ARCHIVO
 ================================================================================
-Página principal de EnviaEso. Muestra el formulario de entrada para que los
-alumnos puedan enviar sus trabajos. Versión inicial: estructura visual y
-formulario sin lógica de negocio conectada.
+Página principal temporal de EnviaEso (MVP en construcción).
+Muestra una estructura visual básica con formulario de entrada sin lógica
+de negocio conectada. Sirve como placeholder visual mientras se implementa
+la funcionalidad real.
 
+MIGRADO desde app/pages/Home.jsx - Base visual aprovechable temporalmente
 ================================================================================
 ALCANCE
 ================================================================================
 - Título y descripción del producto
-- Formulario con campos: nombre, email, código (sin lógica aún)
+- Formulario visual con campos: nombre, email, código (sin lógica aún)
 - Botón de envío visual
 - Diseño responsive, mobile-first, limpio y profesional
 - NO incluye: validación, manejo de envío, conexión a backend
@@ -20,21 +22,19 @@ DECISIONES IMPORTANTES ACTUALES
 ================================================================================
 - Diseño centrado en el formulario como elemento principal
 - Inputs grandes y accesibles para facilitar uso en móvil
-- Copy simple y directo: "Estoy en la lista" como CTA en lugar de "Enviar"
-  para transmitir pertenencia al grupo/clase
+- Copy simple y directo: "Estoy en la lista" como CTA
 - Sin manejo de estado (useState) aún - se añadirá al conectar lógica
 
 ================================================================================
 LIMITACIONES O ESTADO TEMPORAL
-================================================================================
-- Formulario no funcional: inputs son controlados visualmente pero sin estado
-- Sin validación de campos
-- Sin manejo de archivo adjunto (se añadirá en siguiente iteración)
-- Sin feedback post-envío (página de confirmación pendiente)
+===============================================================================
+- [TEMPORAL] Esta página es una base visual placeholder
+- Formulario no funcional: inputs sin estado ni validación
+- Sin manejo de archivo adjunto
+- Sin feedback post-envío
+- Será reemplazada o refactorizada cuando se implemente el flujo real
 ================================================================================
 */
-
-import React from 'react'
 
 function Home() {
   return (

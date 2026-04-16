@@ -320,5 +320,81 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 5  
-**Última actualización:** 15 de abril de 2025
+## 2025-04-16 - Migración de estructura: de `app/` a `src/` en Vite
+
+**Objetivo:** Ordenar la estructura real del frontend de EnviaEso para trabajar definitivamente sobre Vite + React usando `src/`, reaprovechando lo útil de la antigua carpeta `app/` y dejando el proyecto listo para seguir implementando.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Explorar y evaluar contenido de `app/`**:
+  - `app/App.jsx` → estructura simple, no migrado (reemplazado por versión en `src/`)
+  - `app/main.jsx` → punto de entrada, no migrado (reemplazado por versión en `src/`)
+  - `app/pages/Home.jsx` → **MIGRADO** a `src/pages/Home.jsx` como base visual temporal
+  - `app/styles/global.css` → **MIGRADO** a `src/styles/global.css` con sistema de diseño completo
+
+- [x] **Crear estructura de carpetas bajo `src/`**:
+  - `src/components/` → creada (vacía, lista para componentes reutilizables)
+  - `src/pages/` → creada con `Home.jsx` migrado
+  - `src/styles/` → creada con `global.css` migrado
+  - `src/utils/` → creada (vacía, lista para helpers)
+  - `src/services/` → ya existía con `supabase.js`
+
+- [x] **Migrar `src/styles/global.css`**:
+  - Sistema de diseño completo: variables CSS, reset, tipografía, espaciado
+  - Estilos base para inputs (.input) y botones (.btn, .btn-primary)
+  - Utilidades de layout: .container, .page, .stack, .stack-lg, etc.
+  - Utilidades de texto: .text-center, .text-light, .text-muted, etc.
+  - Añadida clase `.sr-only` para accesibilidad (labels ocultos visualmente)
+  - Cabecera descriptiva actualizada indicando migración desde `app/`
+
+- [x] **Migrar `src/pages/Home.jsx`**:
+  - Estructura visual del formulario preservada
+  - Marcado como **[TEMPORAL]** en cabecera: base visual placeholder
+  - Señalado explícitamente como obsoleto respecto a arquitectura actual
+  - Mantiene diseño mobile-first con clases CSS del sistema migrado
+
+- [x] **Actualizar `src/App.jsx`**:
+  - Nueva cabecera descriptiva completa
+  - Integración con `Home.jsx` desde `src/pages/`
+  - Mantiene test de conexión Supabase en useEffect
+  - Import corregido: `from './services/supabase'` (sin .js)
+
+- [x] **Actualizar `src/main.jsx`**:
+  - Nueva cabecera descriptiva completa
+  - Import cambiado: `'./styles/global.css'` (en lugar de `'./index.css'`)
+  - Mantiene React 18+ createRoot y StrictMode
+
+- [x] **Verificar integración**:
+  - `src/services/supabase.js` ya existente y funcional
+  - Todos los imports actualizados y consistentes
+  - Estructura final: `src/{components,pages,services,styles,utils}/`
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/styles/global.css` | Creado | Migrado desde `app/styles/global.css` - Sistema de diseño completo con variables CSS, estilos base, utilidades |
+| `src/pages/Home.jsx` | Creado | Migrado desde `app/pages/Home.jsx` - Página temporal con formulario visual, marcada como placeholder |
+| `src/App.jsx` | Modificado | Reestructurado con cabecera descriptiva, integra Home migrado, mantiene test Supabase |
+| `src/main.jsx` | Modificado | Actualizado con cabecera descriptiva, importa `global.css` en lugar de `index.css` |
+| `docs/BITACORA.md` | Modificado | Esta entrada de sesión 6 |
+
+### Notas para sesiones futuras
+- **ESTRUCTURA DEFINITIVA**: El frontend trabaja sobre `src/`, no sobre `app/`
+- **`app/` QUEDA OBSOLETA**: Contiene código de iteraciones previas, no debe usarse
+  - `app/App.jsx` → obsoleto (reemplazado por `src/App.jsx`)
+  - `app/main.jsx` → obsoleto (reemplazado por `src/main.jsx`)
+  - `app/pages/Home.jsx` → migrado a `src/pages/Home.jsx` (marcado como temporal)
+  - `app/styles/global.css` → migrado a `src/styles/global.css`
+- **Home.jsx es temporal**: La página actual no refleja la arquitectura dual (alumno/profesor) definida en docs. Se usará como placeholder visual mientras se implementa el routing real.
+- **Próximos pasos sugeridos**:
+  1. Instalar React Router DOM
+  2. Crear estructura de rutas: `/` (portal alumno), `/panel` (login/profesor)
+  3. Implementar autenticación de profesores con Supabase Auth
+  4. Implementar flujo de creación de grupos
+  5. Reemplazar Home.jsx temporal con páginas reales del flujo alumno
+- **Seguro eliminar `app/`**: Una vez verificado que todo funciona en `src/`, la carpeta `app/` puede eliminarse sin pérdida de información (todo útil ya está migrado)
+
+---
+
+**Total de sesiones registradas:** 6  
+**Última actualización:** 16 de abril de 2025

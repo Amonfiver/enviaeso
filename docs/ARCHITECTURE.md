@@ -643,4 +643,12 @@ Definición estructurada de las tablas para implementación en PostgreSQL/Supaba
 **Última actualización:** 15 de abril de 2026  
 **Estado:** Listo para implementación de base de datos
 
-> **Nota sobre implementación actual:** La estructura de carpetas `/app` creada en iteración 2 y el componente `Home.jsx` están orientados al modelo anterior (formulario de "envío"). Deben ser rediseñados para implementar el flujo de acceso por código + enlace mágico.
+> **Nota sobre estructura actual (post-migración):** La carpeta `/app` ha quedado **obsoleta** (contiene código de iteraciones previas). El frontend definitivo trabaja sobre `/src` con la siguiente estructura:
+> - `src/components/` → Componentes reutilizables
+> - `src/pages/` → Páginas (incluye `Home.jsx` temporal migrado desde `/app`)
+> - `src/services/` → Servicios (API, Supabase)
+> - `src/styles/` → Estilos globales (migrado desde `/app/styles/global.css`)
+> - `src/utils/` → Helpers y utilidades
+> - `src/App.jsx` + `src/main.jsx` → Punto de entrada
+>
+> `Home.jsx` está marcado como **[TEMPORAL]** - sirve como placeholder visual mientras se implementa el routing real con React Router.
