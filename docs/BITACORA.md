@@ -396,5 +396,54 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 6  
+## 2025-04-16 - Panel temporal: edición y borrado de grupos
+
+**Objetivo:** Ampliar el panel temporal del profesor para permitir editar y borrar grupos ya creados, manteniendo el enfoque MVP y sin introducir autenticación oficial.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Actualizar `src/pages/Panel.jsx`**:
+  - Añadido modo edición por cada tarjeta de grupo (inline editing)
+  - Permite editar: `nombre` y `nota_interna` del grupo
+  - El código del grupo se muestra como no editable
+  - Botones claros: "Editar", "Guardar", "Cancelar"
+  - Añadido botón "Borrar" con confirmación mediante `window.confirm`
+  - Al borrar: elimina el grupo de Supabase y refresca la lista automáticamente
+  - Indicador visual de tarjeta en modo edición (borde azul izquierdo)
+  - Estados de carga independientes para edición y borrado
+  - Manejo de errores visible al usuario (mensajes success/error)
+  - Si se borra un grupo en edición, se cancela el modo edición automáticamente
+  - Cabecera descriptiva actualizada para reflejar nuevas capacidades
+
+- [x] **Gestión de estado local**:
+  - `grupoEditando`: ID del grupo en edición (null si ninguno)
+  - `editNombre` y `editNota`: valores temporales de edición
+  - `loadingEdicion`: estado de carga durante guardado
+  - `loadingBorrado`: ID del grupo siendo borrado (null si ninguno)
+  - Funciones: `handleEditarClick`, `handleCancelarEdicion`, `handleGuardarEdicion`, `handleBorrarGrupo`
+
+- [x] **UX mantenida simple y limpia**:
+  - Estilo consistente con el diseño actual
+  - Sin sobrecarga visual
+  - Distinción clara entre modo visualización y modo edición
+  - Botón "Borrar" con estilo distintivo (fondo rojo claro, texto rojo)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadida edición inline de grupos (nombre, nota), borrado con confirmación, estados de carga, manejo de errores |
+
+### Notas para sesiones futuras
+- **Panel temporal ahora soporta gestión básica completa de grupos**: crear, editar, borrar
+- **No se ha extraído componente reutilizable**: la lógica está en Panel.jsx, lo cual es aceptable para MVP
+- **No se ha tocado autenticación**: sigue usando `PROFESOR_ID_TEMPORAL`
+- **Próximos pasos sugeridos**:
+  1. Implementar autenticación real con Supabase Auth
+  2. Vista de detalle de grupo (listar alumnos, subir materiales)
+  3. Flujo de alumno: acceso por código y visualización de materiales
+- **La tabla `grupos` ya tiene `on delete cascade`**: al borrar un grupo, se eliminan automáticamente las relaciones dependientes
+
+---
+
+**Total de sesiones registradas:** 7  
 **Última actualización:** 16 de abril de 2025

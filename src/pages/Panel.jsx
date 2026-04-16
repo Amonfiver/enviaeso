@@ -1,19 +1,21 @@
 /**
  * Propósito:
- * Pantalla temporal del panel del profesor para crear y visualizar grupos.
+ * Pantalla temporal del panel del profesor para crear, editar, borrar y visualizar grupos.
  *
  * Alcance:
  * MVP puente sin autenticación real.
  *
  * Decisiones:
  * - Usa un profesor_id temporal fijo para validar el flujo
- * - Genera un código automáticamente
+ * - Genera un código automáticamente al crear
  * - Lista los grupos ya creados del profesor
  * - Permite guardar una nota interna opcional por grupo
+ * - Permite editar nombre y nota_interna de grupos existentes
+ * - Permite borrar grupos con confirmación
  *
  * Limitaciones:
  * - Aún no hay login oficial
- * - Aún no permite editar ni borrar grupos
+ * - No se permite editar el código de grupo
  * - Aún no hay detalle de alumnos por grupo
  */
 
@@ -32,6 +34,13 @@ export default function Panel() {
   const [loading, setLoading] = useState(false);
   const [grupos, setGrupos] = useState([]);
   const [loadingGrupos, setLoadingGrupos] = useState(true);
+
+  // Estado para edición de grupos
+  const [grupoEditando, setGrupoEditando] = useState(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editNota, setEditNota] = useState('');
+  const [loadingEdicion, setLoadingEdicion] = useState(false);
+  const [loadingBorrado, setLoadingBorrado] = useState(null);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -115,6 +124,108 @@ export default function Panel() {
     }
   };
 
+  const handleEditarClick = (grupo) => {
+    setGrupoEditando(grupo.id);
+    setEditNombre(grupo.nombre);
+    setEditNota(grupo.nota_interna || '');
+    setMensaje('');
+    setTipoMensaje('');
+  };
+
+  const handleCancelarEdicion = () => {
+    setGrupoEditando(null);
+    setEditNombre('');
+    setEditNota('');
+  };
+
+  const handleGuardarEdicion = async (grupoId) => {
+    const nombreNormalizado = editNombre.trim();
+    const notaNormalizada = editNota.trim();
+
+    if (!nombreNormalizado) {
+      setMensaje('El nombre del grupo es obligatorio.');
+      setTipoMensaje('error');
+      return;
+    }
+
+    setLoadingEdicion(true);
+    setMensaje('');
+    setTipoMensaje('');
+
+    try {
+      const { error } = await supabase
+        .from('grupos')
+        .update({
+          nombre: nombreNormalizado,
+          nota_interna: notaNormalizada || null,
+        })
+        .eq('id', grupoId)
+        .eq('profesor_id', PROFESOR_ID_TEMPORAL);
+
+      if (error) {
+        throw error;
+      }
+
+      setMensaje('Grupo actualizado correctamente.');
+      setTipoMensaje('success');
+      setGrupoEditando(null);
+      setEditNombre('');
+      setEditNota('');
+
+      await cargarGrupos();
+    } catch (error) {
+      console.error('Error al actualizar grupo:', error);
+      setMensaje('No se pudo actualizar el grupo. Inténtalo de nuevo.');
+      setTipoMensaje('error');
+    } finally {
+      setLoadingEdicion(false);
+    }
+  };
+
+  const handleBorrarGrupo = async (grupo) => {
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que quieres borrar el grupo "${grupo.nombre}"? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    setLoadingBorrado(grupo.id);
+    setMensaje('');
+    setTipoMensaje('');
+
+    try {
+      const { error } = await supabase
+        .from('grupos')
+        .delete()
+        .eq('id', grupo.id)
+        .eq('profesor_id', PROFESOR_ID_TEMPORAL);
+
+      if (error) {
+        throw error;
+      }
+
+      setMensaje('Grupo borrado correctamente.');
+      setTipoMensaje('success');
+
+      // Si estábamos editando este grupo, cancelar edición
+      if (grupoEditando === grupo.id) {
+        setGrupoEditando(null);
+        setEditNombre('');
+        setEditNota('');
+      }
+
+      await cargarGrupos();
+    } catch (error) {
+      console.error('Error al borrar grupo:', error);
+      setMensaje('No se pudo borrar el grupo. Inténtalo de nuevo.');
+      setTipoMensaje('error');
+    } finally {
+      setLoadingBorrado(null);
+    }
+  };
+
   return (
     <div className="container">
       <h1>Panel del profesor</h1>
@@ -179,29 +290,162 @@ export default function Panel() {
                   borderRadius: '12px',
                   padding: '16px',
                   background: '#ffffff',
+                  borderLeft:
+                    grupoEditando === grupo.id ? '4px solid #1570ef' : undefined,
                 }}
               >
-                <h3 style={{ margin: '0 0 8px 0' }}>{grupo.nombre}</h3>
+                {grupoEditando === grupo.id ? (
+                  // Modo edición
+                  <>
+                    <input
+                      type="text"
+                      value={editNombre}
+                      onChange={(e) => setEditNombre(e.target.value)}
+                      placeholder="Nombre del grupo"
+                      style={{
+                        width: '100%',
+                        marginBottom: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #d0d5dd',
+                        font: 'inherit',
+                        fontWeight: '600',
+                      }}
+                    />
 
-                <p style={{ margin: '0 0 4px 0' }}>
-                  <strong>Código:</strong> {grupo.codigo}
-                </p>
+                    <textarea
+                      value={editNota}
+                      onChange={(e) => setEditNota(e.target.value)}
+                      placeholder="Nota interna opcional"
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        marginBottom: '12px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #d0d5dd',
+                        resize: 'vertical',
+                        font: 'inherit',
+                      }}
+                    />
 
-                {grupo.nota_interna && (
-                  <p
-                    style={{
-                      margin: '8px 0 8px 0',
-                      color: '#344054',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    <strong>Nota:</strong> {grupo.nota_interna}
-                  </p>
+                    <p
+                      style={{
+                        margin: '0 0 12px 0',
+                        color: '#667085',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <strong>Código:</strong> {grupo.codigo}{' '}
+                      <em>(no editable)</em>
+                    </p>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <button
+                        onClick={() => handleGuardarEdicion(grupo.id)}
+                        disabled={loadingEdicion}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                        }}
+                      >
+                        {loadingEdicion ? 'Guardando...' : 'Guardar'}
+                      </button>
+
+                      <button
+                        onClick={handleCancelarEdicion}
+                        disabled={loadingEdicion}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          backgroundColor: '#f2f4f7',
+                          color: '#344054',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  // Modo visualización
+                  <>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                      }}
+                    >
+                      <h3 style={{ margin: '0 0 8px 0' }}>{grupo.nombre}</h3>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '8px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <button
+                          onClick={() => handleEditarClick(grupo)}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                          }}
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => handleBorrarGrupo(grupo)}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: '#fef3f2',
+                            color: '#b42318',
+                            border: '1px solid #fda29b',
+                          }}
+                        >
+                          {loadingBorrado === grupo.id
+                            ? 'Borrando...'
+                            : 'Borrar'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <p style={{ margin: '0 0 4px 0' }}>
+                      <strong>Código:</strong> {grupo.codigo}
+                    </p>
+
+                    {grupo.nota_interna && (
+                      <p
+                        style={{
+                          margin: '8px 0 8px 0',
+                          color: '#344054',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        <strong>Nota:</strong> {grupo.nota_interna}
+                      </p>
+                    )}
+
+                    <p
+                      style={{ margin: '12px 0 0 0', color: '#667085', fontSize: '14px' }}
+                    >
+                      Creado: {new Date(grupo.created_at).toLocaleString()}
+                    </p>
+                  </>
                 )}
-
-                <p style={{ margin: 0, color: '#667085', fontSize: '14px' }}>
-                  Creado: {new Date(grupo.created_at).toLocaleString()}
-                </p>
               </div>
             ))}
           </div>
