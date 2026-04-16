@@ -1,106 +1,149 @@
-/*
-================================================================================
-PROPOSITO DEL ARCHIVO
-================================================================================
-Página principal temporal de EnviaEso (MVP en construcción).
-Muestra una estructura visual básica con formulario de entrada sin lógica
-de negocio conectada. Sirve como placeholder visual mientras se implementa
-la funcionalidad real.
+/**
+ * Propósito:
+ * Pantalla principal para que el alumno se apunte a un grupo mediante código.
+ *
+ * Alcance:
+ * MVP inicial conectado a Supabase para validar código de grupo y guardar alumnos.
+ *
+ * Decisiones:
+ * - Código solo se usa en alta inicial
+ * - Email será clave para accesos futuros
+ * - Si el alumno ya existe en ese grupo, se informa sin duplicar
+ *
+ * Limitaciones:
+ * - Aún no envía emails
+ * - Aún no hay acceso mágico
+ * - Aún no hay flujo de profesor
+ */
 
-MIGRADO desde app/pages/Home.jsx - Base visual aprovechable temporalmente
-================================================================================
-ALCANCE
-================================================================================
-- Título y descripción del producto
-- Formulario visual con campos: nombre, email, código (sin lógica aún)
-- Botón de envío visual
-- Diseño responsive, mobile-first, limpio y profesional
-- NO incluye: validación, manejo de envío, conexión a backend
+import { useState } from 'react';
+import { supabase } from '../services/supabase';
 
-================================================================================
-DECISIONES IMPORTANTES ACTUALES
-================================================================================
-- Diseño centrado en el formulario como elemento principal
-- Inputs grandes y accesibles para facilitar uso en móvil
-- Copy simple y directo: "Estoy en la lista" como CTA
-- Sin manejo de estado (useState) aún - se añadirá al conectar lógica
+export default function Home() {
+  const [codigo, setCodigo] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
+  const [mensaje, setMensaje] = useState('');
+  const [tipoMensaje, setTipoMensaje] = useState('');
+  const [loading, setLoading] = useState(false);
 
-================================================================================
-LIMITACIONES O ESTADO TEMPORAL
-===============================================================================
-- [TEMPORAL] Esta página es una base visual placeholder
-- Formulario no funcional: inputs sin estado ni validación
-- Sin manejo de archivo adjunto
-- Sin feedback post-envío
-- Será reemplazada o refactorizada cuando se implemente el flujo real
-================================================================================
-*/
+  const limpiarFormulario = () => {
+    setCodigo('');
+    setNombre('');
+    setEmail('');
+  };
 
-function Home() {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setMensaje('');
+    setTipoMensaje('');
+    setLoading(true);
+
+    const codigoNormalizado = codigo.trim().toUpperCase();
+    const nombreNormalizado = nombre.trim();
+    const emailNormalizado = email.trim().toLowerCase();
+
+    try {
+      // 1. Buscar grupo por código
+      const { data: grupo, error: errorGrupo } = await supabase
+        .from('grupos')
+        .select('id, nombre, codigo')
+        .eq('codigo', codigoNormalizado)
+        .maybeSingle();
+
+      if (errorGrupo) {
+        throw errorGrupo;
+      }
+
+      if (!grupo) {
+        setMensaje('No existe ningún grupo con ese código.');
+        setTipoMensaje('error');
+        return;
+      }
+
+      // 2. Insertar alumno en el grupo
+      const { error: errorAlumno } = await supabase
+        .from('alumnos')
+        .insert([
+          {
+            grupo_id: grupo.id,
+            nombre: nombreNormalizado,
+            email: emailNormalizado,
+          },
+        ]);
+
+      if (errorAlumno) {
+        // Error por duplicado: ya existe ese email en ese grupo
+        if (errorAlumno.code === '23505') {
+          setMensaje('Ese correo ya está apuntado en este grupo.');
+          setTipoMensaje('error');
+          return;
+        }
+
+        throw errorAlumno;
+      }
+
+      setMensaje(
+        `Te has apuntado correctamente al grupo "${grupo.nombre}".`
+      );
+      setTipoMensaje('success');
+      limpiarFormulario();
+    } catch (error) {
+      console.error('Error al apuntar alumno:', error);
+      setMensaje('Ha ocurrido un error. Inténtalo de nuevo.');
+      setTipoMensaje('error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="page">
-      <main className="container">
-        <div className="stack-lg text-center">
-          {/* Header */}
-          <header className="stack">
-            <h1 className="text-3xl font-semibold">EnviaEso</h1>
-            <p className="text-light text-lg">
-              Entrega tus trabajos al profe en segundos. 
-              <br />
-              Sin registros, sin complicaciones.
-            </p>
-          </header>
+    <div className="container">
+      <h1>EnviaEso 🚀</h1>
+      <p>Introduce el código de tu clase para recibir la documentación</p>
 
-          {/* Formulario */}
-          <form className="stack" onSubmit={(e) => e.preventDefault()}>
-            <div className="stack">
-              <label htmlFor="nombre" className="sr-only">
-                Tu nombre
-              </label>
-              <input
-                id="nombre"
-                type="text"
-                className="input"
-                placeholder="Tu nombre completo"
-                autoComplete="name"
-              />
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Código del grupo"
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value)}
+          required
+        />
 
-              <label htmlFor="email" className="sr-only">
-                Tu email
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="input"
-                placeholder="Tu email"
-                autoComplete="email"
-              />
+        <input
+          type="text"
+          placeholder="Tu nombre"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          required
+        />
 
-              <label htmlFor="codigo" className="sr-only">
-                Código de clase
-              </label>
-              <input
-                id="codigo"
-                type="text"
-                className="input"
-                placeholder="Código de la clase"
-                autoComplete="off"
-              />
-            </div>
+        <input
+          type="email"
+          placeholder="Tu email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
-            <button type="submit" className="btn btn-primary">
-              Estoy en la lista
-            </button>
-          </form>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Apuntando...' : 'Estoy en la lista'}
+        </button>
+      </form>
 
-          {/* Nota informativa */}
-          <p className="text-sm text-muted">
-            Introduce el código que te ha dado tu profesor para unirte a la lista de entregas.
-          </p>
-        </div>
-      </main>
+      {mensaje && (
+        <p
+          style={{
+            marginTop: '16px',
+            color: tipoMensaje === 'error' ? '#b42318' : '#067647',
+            fontWeight: '600',
+          }}
+        >
+          {mensaje}
+        </p>
+      )}
     </div>
-  )
+  );
 }
-
-export default Home
