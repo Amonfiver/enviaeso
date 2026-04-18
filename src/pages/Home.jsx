@@ -9,6 +9,7 @@
  * - Código solo se usa en alta inicial
  * - Email será clave para accesos futuros
  * - Si el alumno ya existe en ese grupo, se informa sin duplicar
+ * - Mensaje de privacidad visible para generar confianza en el usuario
  *
  * Limitaciones:
  * - Aún no envía emails
@@ -127,6 +128,17 @@ export default function Home() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
+        <p
+          style={{
+            fontSize: '0.875rem',
+            color: '#6b7280',
+            marginTop: '4px',
+            marginBottom: '0',
+          }}
+        >
+          Tu correo no será compartido con el profesor ni con otros alumnos.
+        </p>
 
         <button type="submit" disabled={loading}>
           {loading ? 'Apuntando...' : 'Estoy en la lista'}

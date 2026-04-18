@@ -502,5 +502,30 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 9  
+## 2025-04-18 - Mensaje de privacidad en formulario de alumno
+
+**Objetivo:** Añadir un mensaje de privacidad visible en el flujo del alumno para generar confianza, específicamente junto al campo de email.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadido mensaje de privacidad en `src/pages/Home.jsx` justo después del input de email
+- [x] Estilo inline coherente con el diseño actual: texto pequeño (0.875rem), color gris (#6b7280), sin romper el espaciado
+- [x] Texto exacto: "Tu correo no será compartido con el profesor ni con otros alumnos."
+- [x] Actualizada cabecera descriptiva del archivo para reflejar la nueva decisión de privacidad
+- [x] **Sin cambios en lógica:** No se modificó ninguna validación, manejo de estado, consulta a Supabase ni flujo de envío
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Home.jsx` | Modificado | Añadido mensaje de privacidad junto al campo email, actualizada cabecera descriptiva |
+
+### Notas para sesiones futuras
+- **Mensaje de privacidad implementado:** Transmite confianza sin sonar legalista, visible antes de enviar el formulario
+- **Cambios mínimos garantizados:** Solo se añadió un elemento `<p>` con estilo inline, sin tocar lógica ni backend
+- **No se añadió checkbox:** El requerimiento especificaba solo texto informativo, sin acción del usuario
+- **Coherencia visual:** El estilo usa los mismos valores de color y tamaño que el sistema de diseño existente
+
+---
+
+**Total de sesiones registradas:** 10  
 **Última actualización:** 18 de abril de 2025
