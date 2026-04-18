@@ -58,6 +58,67 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-18 - Subida de documentos por grupo en panel del profesor
+
+**Objetivo:** Implementar la funcionalidad para que el profesor pueda subir documentos a cada grupo, gestionarlos y eliminarlos, usando Supabase Storage y la tabla `materiales`.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Creado `src/services/storage.js`**:
+  - Función `subirMaterial(grupoId, archivo)` - sube a Storage y crea registro en BD
+  - Función `eliminarMaterial(materialId, filePath)` - elimina de Storage y BD
+  - Función `listarMaterialesPorGrupo(grupoId)` - consulta materiales de un grupo
+  - Función `validarArchivo(archivo)` - valida tamaño (max 10 MB) y tipo
+  - Función `formatearTamaño(bytes)` - muestra tamaño legible (KB, MB)
+  - Tipos permitidos: PDF, Word, Excel, PowerPoint
+  - Path en Storage: `{profesor_id}/{grupo_id}/{uuid}_{nombre_archivo}`
+
+- [x] **Actualizado `src/pages/Panel.jsx`**:
+  - Importado `useRef` de React para gestionar referencias a inputs file
+  - Importadas funciones del servicio storage
+  - Añadidos estados para gestionar materiales por grupo
+  - Añadidas funciones `cargarMateriales`, `handleSubirArchivo`, `handleEliminarMaterial`
+  - Añadida referencia `fileInputRefs` para inputs file por grupo
+  - Botón "Ver materiales" (verde) en cada tarjeta de grupo
+  - Sección expandible de materiales con lista de archivos
+  - Botón "+ Subir archivo" con input file oculto
+  - Cada archivo muestra: nombre, tamaño formateado, botón eliminar
+  - Estados de carga durante subida y carga de materiales
+  - Mensajes de éxito/error usando el sistema existente
+
+- [x] **Ajuste posterior - Orden de borrado corregido:**
+  - Cambiado orden en `eliminarMaterial()`: primero Storage, luego BD
+  - Rationale: Si falla el Storage, el registro en BD se puede recrear; al revés no
+  - Si falla Storage, se intenta limpiar BD de todos modos (mejor huérfano en Storage que en BD)
+
+- [x] **Estructura de Storage**:
+  - Bucket único: `materiales`
+  - Organización jerárquica por profesor/grupo
+  - UUID en nombre de archivo para evitar colisiones
+
+- [x] **Sin cambios en backend más allá de Supabase**:
+  - No se creó servidor propio
+  - Se usa API de Supabase Storage directamente desde frontend
+  - RLS temporalmente permisivo (documentado como deuda técnica)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/storage.js` | Creado | Servicio completo para gestión de materiales: subida, eliminación, listado, validación |
+| `src/pages/Panel.jsx` | Modificado | Integración de UI de materiales: botón Ver materiales, sección expandible, subida de archivos, lista con eliminación |
+
+### Notas para sesiones futuras
+- **Deuda técnica - RLS:** Las políticas RLS de Storage y BD son permisivas temporalmente. Antes de producción real:
+  - Configurar RLS en tabla `materiales` para que solo el profesor dueño pueda modificar
+  - Configurar RLS en bucket `materiales` para controlar acceso a archivos
+- **Límite de tamaño:** 10 MB por archivo (configurable en `storage.js`)
+- **Tipos permitidos:** Solo documentos de oficina y PDF (no imágenes ni videos por ahora)
+- **UX implementada:** Cada grupo tiene su propia lista de materiales independiente
+- **Preparado para la prueba del lunes:** El profesor puede crear grupo → invitar alumnos → subir materiales → todo desde el mismo panel
+- **Siguiente paso lógico:** Implementar flujo de alumno para ver/descargar estos materiales
+
+---
+
 ## 2026-04-18 - Botón "Copiar invitación" en tarjetas de grupo
 
 **Objetivo:** Añadir un botón "Copiar invitación" en cada tarjeta de grupo para que el profesor pueda compartir fácilmente un mensaje listo para enviar por WhatsApp o similar, facilitando la prueba real del lunes.  

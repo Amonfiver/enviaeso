@@ -24,9 +24,15 @@
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { generarCodigoGrupo } from '../utils/generarCodigoGrupo';
+import {
+  subirMaterial,
+  eliminarMaterial,
+  listarMaterialesPorGrupo,
+  formatearTamaño,
+} from '../services/storage';
 
 // TODO: Reemplazar por el profesor autenticado cuando implementemos login real
 const PROFESOR_ID_TEMPORAL = '8f3de77b-11e4-4fd6-a45c-068368e540a9';
@@ -54,6 +60,11 @@ export default function Panel() {
 
   // Estado para conteo de alumnos por grupo (privacidad: solo conteos, no emails)
   const [conteoAlumnos, setConteoAlumnos] = useState({});
+
+  // Estado para materiales por grupo
+  const [materialesPorGrupo, setMaterialesPorGrupo] = useState({});
+  const [loadingMateriales, setLoadingMateriales] = useState({});
+  const [subiendoArchivo, setSubiendoArchivo] = useState(null);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -394,6 +405,109 @@ export default function Panel() {
     setMensaje('Información actualizada.');
     setTipoMensaje('success');
   };
+
+  // ============================================================================
+  // FUNCIONES PARA GESTIÓN DE MATERIALES
+  // ============================================================================
+
+  /**
+   * Carga los materiales de un grupo específico.
+   * Se ejecuta al expandir la sección de materiales.
+   */
+  const cargarMateriales = async (grupoId) => {
+    setLoadingMateriales((prev) => ({ ...prev, [grupoId]: true }));
+    try {
+      const { data, error } = await listarMaterialesPorGrupo(grupoId);
+      if (error) {
+        throw new Error(error);
+      }
+      setMaterialesPorGrupo((prev) => ({ ...prev, [grupoId]: data }));
+    } catch (error) {
+      console.error('Error al cargar materiales:', error);
+      setMensaje('No se pudieron cargar los materiales.');
+      setTipoMensaje('error');
+    } finally {
+      setLoadingMateriales((prev) => ({ ...prev, [grupoId]: false }));
+    }
+  };
+
+  /**
+   * Maneja la selección y subida de un archivo.
+   * Se activa cuando el usuario selecciona un archivo en el input.
+   */
+  const handleSubirArchivo = async (grupoId, archivo) => {
+    if (!archivo) return;
+
+    setSubiendoArchivo(grupoId);
+    setMensaje('');
+    setTipoMensaje('');
+
+    try {
+      const { data, error } = await subirMaterial(grupoId, archivo);
+      if (error) {
+        throw new Error(error);
+      }
+
+      // Actualizar lista de materiales en estado
+      setMaterialesPorGrupo((prev) => ({
+        ...prev,
+        [grupoId]: [data, ...(prev[grupoId] || [])],
+      }));
+
+      setMensaje(`Archivo "${archivo.name}" subido correctamente.`);
+      setTipoMensaje('success');
+    } catch (error) {
+      console.error('Error al subir archivo:', error);
+      setMensaje(error.message || 'No se pudo subir el archivo.');
+      setTipoMensaje('error');
+    } finally {
+      setSubiendoArchivo(null);
+    }
+  };
+
+  /**
+   * Elimina un material del grupo.
+   * Pide confirmación antes de eliminar.
+   */
+  const handleEliminarMaterial = async (grupoId, material) => {
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que quieres eliminar "${material.nombre_archivo}"?`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    setMensaje('');
+    setTipoMensaje('');
+
+    try {
+      const { success, error } = await eliminarMaterial(
+        material.id,
+        material.url_storage
+      );
+
+      if (!success) {
+        throw new Error(error);
+      }
+
+      // Actualizar lista de materiales en estado
+      setMaterialesPorGrupo((prev) => ({
+        ...prev,
+        [grupoId]: (prev[grupoId] || []).filter((m) => m.id !== material.id),
+      }));
+
+      setMensaje('Archivo eliminado correctamente.');
+      setTipoMensaje('success');
+    } catch (error) {
+      console.error('Error al eliminar material:', error);
+      setMensaje(error.message || 'No se pudo eliminar el archivo.');
+      setTipoMensaje('error');
+    }
+  };
+
+  // Referencias para inputs file (una por grupo)
+  const fileInputRefs = useRef({});
 
   return (
     <div className="container">
@@ -742,6 +856,137 @@ export default function Panel() {
                               ))}
                             </ul>
                           </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Botón Ver materiales */}
+                    <button
+                      onClick={() => {
+                        const materialesActuales = materialesPorGrupo[grupo.id];
+                        if (materialesActuales) {
+                          setMaterialesPorGrupo((prev) => ({
+                            ...prev,
+                            [grupo.id]: undefined,
+                          }));
+                        } else {
+                          cargarMateriales(grupo.id);
+                        }
+                      }}
+                      disabled={loadingBorrado === grupo.id}
+                      style={{
+                        marginTop: '8px',
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        minWidth: 'auto',
+                        backgroundColor: '#f0fdf4',
+                        color: '#166534',
+                        border: '1px solid #86efac',
+                      }}
+                    >
+                      {materialesPorGrupo[grupo.id] ? 'Ocultar materiales' : 'Ver materiales'}
+                    </button>
+
+                    {/* Sección expandible de materiales */}
+                    {materialesPorGrupo[grupo.id] !== undefined && (
+                      <div
+                        style={{
+                          marginTop: '12px',
+                          padding: '12px',
+                          backgroundColor: '#f0fdf4',
+                          borderRadius: '8px',
+                          border: '1px solid #bbf7d0',
+                        }}
+                      >
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#166534' }}>
+                          Materiales de {grupo.nombre}
+                        </h4>
+
+                        {/* Input file oculto */}
+                        <input
+                          type="file"
+                          ref={(el) => (fileInputRefs.current[grupo.id] = el)}
+                          onChange={(e) => {
+                            const archivo = e.target.files?.[0];
+                            if (archivo) {
+                              handleSubirArchivo(grupo.id, archivo);
+                            }
+                            e.target.value = '';
+                          }}
+                          style={{ display: 'none' }}
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                        />
+
+                        {/* Botón subir archivo */}
+                        <button
+                          onClick={() => fileInputRefs.current[grupo.id]?.click()}
+                          disabled={subiendoArchivo === grupo.id || loadingBorrado === grupo.id}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: '#ffffff',
+                            color: '#166534',
+                            border: '1px solid #86efac',
+                            marginBottom: '12px',
+                          }}
+                        >
+                          {subiendoArchivo === grupo.id ? 'Subiendo...' : '+ Subir archivo'}
+                        </button>
+
+                        {/* Lista de materiales */}
+                        {loadingMateriales[grupo.id] ? (
+                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
+                            Cargando materiales...
+                          </p>
+                        ) : materialesPorGrupo[grupo.id]?.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
+                            Aún no hay materiales en este grupo.
+                          </p>
+                        ) : (
+                          <ul
+                            style={{
+                              margin: 0,
+                              padding: 0,
+                              listStyle: 'none',
+                              fontSize: '14px',
+                            }}
+                          >
+                            {materialesPorGrupo[grupo.id]?.map((material) => (
+                              <li
+                                key={material.id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '8px 0',
+                                  borderBottom: '1px solid #bbf7d0',
+                                }}
+                              >
+                                <span style={{ color: '#344054' }}>
+                                  📄 {material.nombre_archivo}{' '}
+                                  <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                                    ({formatearTamaño(material.tamaño_bytes)})
+                                  </span>
+                                </span>
+                                <button
+                                  onClick={() => handleEliminarMaterial(grupo.id, material)}
+                                  disabled={loadingBorrado === grupo.id}
+                                  style={{
+                                    padding: '4px 8px',
+                                    fontSize: '12px',
+                                    minWidth: 'auto',
+                                    backgroundColor: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fecaca',
+                                    borderRadius: '4px',
+                                  }}
+                                >
+                                  Eliminar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
                     )}
