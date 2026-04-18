@@ -718,5 +718,54 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 12  
+## 2026-04-18 - Preparación base técnica para sistema de emails (Resend)
+
+**Objetivo:** Preparar la infraestructura mínima para futuro envío de correos con Resend, sin implementar aún el botón "avisar a todos" ni envío real.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Creado `src/services/email.js`**:
+  - Documentación completa en cabecera: propósito, alcance, decisiones, limitaciones, migración futura
+  - Función `enviarCorreoPrueba({ para, asunto, contenido })` - mock para validación de configuración
+  - Función `enviarAvisoGrupo({ grupoId, grupoNombre, profesorNombre, alumnos, urlAcceso })` - mock para notificación grupal
+  - Función `enviarCorreoPlantilla({ para, plantilla, variables })` - preparación para emails con diseño
+  - Todas las funciones devuelven Promesas con delay realista (600-3000ms) para simular comportamiento async
+  - Logs en consola solo en desarrollo (`import.meta.env.DEV`)
+  - Validaciones básicas de parámetros con mensajes de error descriptivos
+  - Exportación individual y como objeto `EmailService`
+
+- [x] **Decisión documentada - Por qué NO Resend desde frontend**:
+  - Resend requiere API key con permisos de envío
+  - Exponer API key en frontend = riesgo de extracción y abuso (spam, costes inesperados)
+  - Solución correcta: backend intermediario que valide, rate-limite y envíe
+  - Este archivo es temporal en frontend, diseñado para migrarse fácilmente a backend
+
+- [x] **Sin cambios en funcionalidad visible**:
+  - No se modificó `Home.jsx`
+  - No se modificó `Panel.jsx`
+  - No se añadió botón "Avisar a todos" todavía
+  - No se tocó lógica de alumnos, grupos, ni materiales
+  - Supabase permanece igual
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/email.js` | Creado | Servicio base para email: 3 funciones mock documentadas, interfaz preparada para Resend, comentarios de seguridad y migración futura |
+
+### Notas para sesiones futuras
+- **Base técnica lista**: El contrato de datos está definido, las funciones tienen JSDoc completo
+- **Próximo paso**: Implementar backend seguro (ej: Vercel Functions / Supabase Edge Functions) para envío real
+- **Integración con UI**: Cuando se añada el botón "Avisar a todos" en `Panel.jsx`:
+  - Importar funciones desde `src/services/email.js`
+  - Las funciones son drop-in: mismas firmas cuando se migren a backend
+  - Añadir manejo de estado de carga y feedback de éxito/error
+- **Variables de entorno necesarias (futuro)**:
+  - `RESEND_API_KEY` - en backend, nunca en frontend
+  - `EMAIL_FROM` - dirección remitente verificada en Resend
+- **Plantillas de email**: Se definirán en Resend Dashboard o como React Email components
+- **Trazabilidad**: La función `enviarAvisoGrupo` devuelve conteo de enviados/fallidos para registrar en tabla `envios`
+
+---
+
+**Total de sesiones registradas:** 13  
 **Última actualización:** 18 de abril de 2025
