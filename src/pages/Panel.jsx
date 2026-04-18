@@ -271,6 +271,22 @@ export default function Panel() {
   };
 
   /**
+   * Copia el código del grupo al portapapeles.
+   * Muestra feedback usando el sistema de mensajes existente.
+   */
+  const handleCopiarCodigo = async (codigo) => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setMensaje('Código copiado correctamente.');
+      setTipoMensaje('success');
+    } catch (error) {
+      console.error('Error al copiar código:', error);
+      setMensaje('No se pudo copiar el código. Inténtalo manualmente.');
+      setTipoMensaje('error');
+    }
+  };
+
+  /**
    * Carga los alumnos de un grupo específico.
    * Solo trae los campos necesarios (id, nombre) respetando privacidad.
    * No consulta ni muestra emails de los alumnos.
@@ -509,7 +525,23 @@ export default function Panel() {
                     </div>
 
                     <p style={{ margin: '0 0 4px 0' }}>
-                      <strong>Código:</strong> {grupo.codigo}
+                      <strong>Código:</strong> {grupo.codigo}{' '}
+                      <button
+                        onClick={() => handleCopiarCodigo(grupo.codigo)}
+                        disabled={loadingBorrado === grupo.id}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '12px',
+                          minWidth: 'auto',
+                          backgroundColor: '#f2f4f7',
+                          color: '#344054',
+                          border: '1px solid #d0d5dd',
+                          borderRadius: '6px',
+                          marginLeft: '4px',
+                        }}
+                      >
+                        Copiar código
+                      </button>
                     </p>
 
                     <p style={{ margin: '4px 0 8px 0', color: '#667085', fontSize: '14px' }}>

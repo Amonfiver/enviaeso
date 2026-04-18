@@ -556,5 +556,33 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 11  
+## 2026-04-18 - Botón "Copiar código" en tarjetas de grupo
+
+**Objetivo:** Añadir un botón "Copiar código" en cada tarjeta de grupo para facilitar al profesor compartir el código con sus alumnos.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadida función `handleCopiarCodigo(codigo)` que usa `navigator.clipboard.writeText()`
+- [x] Añadido botón "Copiar código" junto al código del grupo en cada tarjeta
+- [x] Feedback al usuario mediante el sistema de mensajes existente:
+  - Éxito: "Código copiado correctamente."
+  - Error: "No se pudo copiar el código. Inténtalo manualmente."
+- [x] Estilo coherente con los demás botones del panel (fondo gris claro, borde sutil)
+- [x] Botón deshabilitado durante operaciones de borrado (consistencia UX)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadida función `handleCopiarCodigo`, botón "Copiar código" en tarjetas de grupo, feedback mediante sistema de mensajes existente |
+
+### Notas para sesiones futuras
+- **API Clipboard:** Usa `navigator.clipboard.writeText()` nativo del navegador
+- **Compatibilidad:** Requiere HTTPS en producción (funciona en localhost para desarrollo)
+- **Feedback inmediato:** El mensaje aparece en la parte superior del panel usando el sistema existente (`setMensaje` + `setTipoMensaje`)
+- **Sin dependencias externas:** No se añadió librerías, solo API nativa
+- **UX consistente:** El botón sigue el mismo patrón visual que "Editar" y "Borrar" (tamaño pequeño, estilo discreto)
+
+---
+
+**Total de sesiones registradas:** 12  
 **Última actualización:** 18 de abril de 2025
