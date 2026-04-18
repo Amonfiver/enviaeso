@@ -91,6 +91,16 @@ Cada entrada sigue esta estructura:
   - Rationale: Si falla el Storage, el registro en BD se puede recrear; al revés no
   - Si falla Storage, se intenta limpiar BD de todos modos (mejor huérfano en Storage que en BD)
 
+- [x] **Corrección crítica - Sección de materiales se bloqueaba al fallar carga:**
+  - **Problema:** La sección solo se mostraba si `materialesPorGrupo[grupo.id] !== undefined`, pero al fallar la carga, el estado nunca se inicializaba
+  - **Solución:** Separar estado de visibilidad (`grupoMaterialesAbierto`) del estado de datos (`materialesPorGrupo`)
+  - **Nuevo estado `errorMateriales`:** Guarda errores por grupo para mostrar inline sin bloquear UI
+  - **Comportamiento corregido:** 
+    - La sección siempre se abre al pulsar "Ver materiales"
+    - Si falla la carga, se muestra error inline pero el botón "+ Subir archivo" permanece visible
+    - Se inicializa array vacío para que la UI no quede en estado intermedio
+  - **Mejora en logging:** Logs detallados en consola con prefijo `[Materiales]` para debug
+
 - [x] **Estructura de Storage**:
   - Bucket único: `materiales`
   - Organización jerárquica por profesor/grupo

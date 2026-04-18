@@ -64,7 +64,11 @@ export default function Panel() {
   // Estado para materiales por grupo
   const [materialesPorGrupo, setMaterialesPorGrupo] = useState({});
   const [loadingMateriales, setLoadingMateriales] = useState({});
+  const [errorMateriales, setErrorMateriales] = useState({}); // Nuevo: errores por grupo
   const [subiendoArchivo, setSubiendoArchivo] = useState(null);
+  
+  // Estado separado para controlar visibilidad de la sección de materiales
+  const [grupoMaterialesAbierto, setGrupoMaterialesAbierto] = useState(null);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -416,16 +420,27 @@ export default function Panel() {
    */
   const cargarMateriales = async (grupoId) => {
     setLoadingMateriales((prev) => ({ ...prev, [grupoId]: true }));
+    setErrorMateriales((prev) => ({ ...prev, [grupoId]: null })); // Limpiar error previo
+    
     try {
       const { data, error } = await listarMaterialesPorGrupo(grupoId);
       if (error) {
         throw new Error(error);
       }
-      setMaterialesPorGrupo((prev) => ({ ...prev, [grupoId]: data }));
+      setMaterialesPorGrupo((prev) => ({ ...prev, [grupoId]: data || [] }));
+      console.log(`[Materiales] Cargados ${data?.length || 0} materiales para grupo ${grupoId}`);
     } catch (error) {
-      console.error('Error al cargar materiales:', error);
-      setMensaje('No se pudieron cargar los materiales.');
-      setTipoMensaje('error');
+      console.error('[Materiales] Error al cargar materiales:', error);
+      console.error('[Materiales] Detalle:', error.message, error.stack);
+      
+      // Guardar error para mostrar inline, pero NO bloquear la UI
+      setErrorMateriales((prev) => ({ 
+        ...prev, 
+        [grupoId]: error.message || 'Error al cargar materiales' 
+      }));
+      
+      // Inicializar array vacío para que la sección se muestre igual
+      setMaterialesPorGrupo((prev) => ({ ...prev, [grupoId]: [] }));
     } finally {
       setLoadingMateriales((prev) => ({ ...prev, [grupoId]: false }));
     }
@@ -863,13 +878,12 @@ export default function Panel() {
                     {/* Botón Ver materiales */}
                     <button
                       onClick={() => {
-                        const materialesActuales = materialesPorGrupo[grupo.id];
-                        if (materialesActuales) {
-                          setMaterialesPorGrupo((prev) => ({
-                            ...prev,
-                            [grupo.id]: undefined,
-                          }));
+                        if (grupoMaterialesAbierto === grupo.id) {
+                          // Cerrar sección
+                          setGrupoMaterialesAbierto(null);
                         } else {
+                          // Abrir sección y cargar datos
+                          setGrupoMaterialesAbierto(grupo.id);
                           cargarMateriales(grupo.id);
                         }
                       }}
@@ -884,11 +898,11 @@ export default function Panel() {
                         border: '1px solid #86efac',
                       }}
                     >
-                      {materialesPorGrupo[grupo.id] ? 'Ocultar materiales' : 'Ver materiales'}
+                      {grupoMaterialesAbierto === grupo.id ? 'Ocultar materiales' : 'Ver materiales'}
                     </button>
 
                     {/* Sección expandible de materiales */}
-                    {materialesPorGrupo[grupo.id] !== undefined && (
+                    {grupoMaterialesAbierto === grupo.id && (
                       <div
                         style={{
                           marginTop: '12px',
@@ -933,6 +947,27 @@ export default function Panel() {
                         >
                           {subiendoArchivo === grupo.id ? 'Subiendo...' : '+ Subir archivo'}
                         </button>
+
+                        {/* Mensaje de error inline */}
+                        {errorMateriales[grupo.id] && (
+                          <div
+                            style={{
+                              marginBottom: '12px',
+                              padding: '8px 12px',
+                              backgroundColor: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              borderRadius: '6px',
+                              color: '#dc2626',
+                              fontSize: '13px',
+                            }}
+                          >
+                            ⚠️ {errorMateriales[grupo.id]}
+                            <br />
+                            <span style={{ fontSize: '12px', color: '#991b1b' }}>
+                              Puedes intentar subir archivos de todos modos.
+                            </span>
+                          </div>
+                        )}
 
                         {/* Lista de materiales */}
                         {loadingMateriales[grupo.id] ? (
