@@ -58,6 +58,37 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-18 - Botón "Actualizar" en panel del profesor
+
+**Objetivo:** Añadir un botón "Actualizar" en el panel del profesor para refrescar manualmente la información sin recargar la página completa, facilitando la prueba real del lunes con profesor y alumnos.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadido botón "Actualizar" en la parte superior de la sección "Tus grupos" (alineado a la derecha del título)
+- [x] Creada función `handleActualizar()` que:
+  - Recarga los grupos mediante `cargarGrupos()` (grupos + contadores)
+  - Si hay una vista de alumnos abierta, recarga también esos alumnos mediante `recargarAlumnosAbierto()`
+  - Muestra mensaje de confirmación "Información actualizada."
+- [x] Creada función auxiliar `recargarAlumnosAbierto()` que recarga alumnos del grupo abierto sin alternar el estado (toggle)
+- [x] Botón deshabilitado durante la carga (`loadingGrupos`) mostrando "Actualizando..."
+- [x] Estilo coherente con el diseño existente (fondo gris claro, borde sutil)
+- [x] **Sin cambios en backend:** Reutiliza funciones existentes de consulta a Supabase
+- [x] **Sin exposición de emails:** Las consultas existentes solo traen `id` y `nombre` de alumnos, nunca `email`
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadidas funciones `handleActualizar` y `recargarAlumnosAbierto`, botón "Actualizar" en header de sección, reutilización de lógica existente |
+
+### Notas para sesiones futuras
+- **Cambio controlado:** Solo se añadió un botón y dos funciones, sin refactorizar el componente
+- **Comportamiento preservado:** Crear/editar/borrar grupos funcionan exactamente igual
+- **Privacidad mantenida:** No se modificaron las consultas a Supabase; siguen sin traer emails
+- **Preparado para la prueba del lunes:** El profesor puede refrescar datos fácilmente durante la sesión sin perder el contexto de la vista de alumnos abierta
+- **Sin recarga de página:** La actualización es SPA (Single Page Application), solo se reemplazan los datos en estado
+
+---
+
 ## 2025-04-15 - Creación de estructura SDD base
 
 **Objetivo:** Preparar la base documental inicial del proyecto siguiendo flujo Spec Driven Development (SDD) y trabajo incremental. Crear los 5 documentos base sin implementar aún lógica de negocio ni frontend definitivo.  

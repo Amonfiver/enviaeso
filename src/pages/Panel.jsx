@@ -327,6 +327,56 @@ export default function Panel() {
     }
   };
 
+  /**
+   * Recarga los alumnos del grupo actualmente abierto (sin toggle).
+   * Usado por el botón de actualización manual.
+   */
+  const recargarAlumnosAbierto = async () => {
+    if (!grupoAlumnosAbierto) return;
+
+    setLoadingAlumnos(true);
+    try {
+      const { data, error } = await supabase
+        .from('alumnos')
+        .select('id, nombre')
+        .eq('grupo_id', grupoAlumnosAbierto)
+        .order('nombre', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      setAlumnos(data || []);
+    } catch (error) {
+      console.error('Error al recargar alumnos:', error);
+      setMensaje('No se pudieron actualizar los alumnos.');
+      setTipoMensaje('error');
+    } finally {
+      setLoadingAlumnos(false);
+    }
+  };
+
+  /**
+   * Actualiza manualmente toda la información del panel:
+   * - Recarga los grupos y contadores
+   * - Si hay una vista de alumnos abierta, la recarga también
+   */
+  const handleActualizar = async () => {
+    setMensaje('');
+    setTipoMensaje('');
+
+    // Recargar grupos y contadores
+    await cargarGrupos();
+
+    // Si hay alumnos abiertos, recargarlos también
+    if (grupoAlumnosAbierto) {
+      await recargarAlumnosAbierto();
+    }
+
+    setMensaje('Información actualizada.');
+    setTipoMensaje('success');
+  };
+
   return (
     <div className="container">
       <h1>Panel del profesor</h1>
@@ -375,7 +425,32 @@ export default function Panel() {
       )}
 
       <section style={{ marginTop: '32px' }}>
-        <h2>Tus grupos</h2>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: '16px',
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Tus grupos</h2>
+          <button
+            onClick={handleActualizar}
+            disabled={loadingGrupos}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              minWidth: 'auto',
+              backgroundColor: '#f2f4f7',
+              color: '#344054',
+              border: '1px solid #d0d5dd',
+            }}
+          >
+            {loadingGrupos ? 'Actualizando...' : 'Actualizar'}
+          </button>
+        </div>
 
         {loadingGrupos ? (
           <p>Cargando grupos...</p>
