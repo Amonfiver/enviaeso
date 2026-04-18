@@ -2,6 +2,7 @@
  * Propósito:
  * Pantalla temporal del panel del profesor para crear, editar, borrar y visualizar grupos.
  * Incluye vista de alumnos por grupo respetando privacidad (sin mostrar emails).
+ * Muestra contador de alumnos por grupo visible en cada tarjeta.
  *
  * Alcance:
  * MVP puente sin autenticación real.
@@ -14,11 +15,13 @@
  * - Permite editar nombre y nota_interna de grupos existentes
  * - Permite borrar grupos con confirmación
  * - Permite ver alumnos de cada grupo sin exponer emails (solo nombre)
+ * - Muestra contador de alumnos visible en cada tarjeta de grupo
  *
  * Limitaciones:
  * - Aún no hay login oficial
  * - No se permite editar el código de grupo
  * - Vista de alumnos es de solo lectura
+ * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
  */
 
 import { useEffect, useState } from 'react';
@@ -49,21 +52,49 @@ export default function Panel() {
   const [alumnos, setAlumnos] = useState([]);
   const [loadingAlumnos, setLoadingAlumnos] = useState(false);
 
+  // Estado para conteo de alumnos por grupo (privacidad: solo conteos, no emails)
+  const [conteoAlumnos, setConteoAlumnos] = useState({});
+
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
 
     try {
-      const { data, error } = await supabase
+      // 1. Cargar grupos del profesor
+      const { data: gruposData, error: gruposError } = await supabase
         .from('grupos')
         .select('id, nombre, codigo, nota_interna, created_at')
         .eq('profesor_id', PROFESOR_ID_TEMPORAL)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
+      if (gruposError) {
+        throw gruposError;
       }
 
-      setGrupos(data || []);
+      const gruposCargados = gruposData || [];
+      setGrupos(gruposCargados);
+
+      // 2. Cargar conteo de alumnos por grupo (sin traer emails, solo grupo_id)
+      if (gruposCargados.length > 0) {
+        const grupoIds = gruposCargados.map((g) => g.id);
+        const { data: alumnosData, error: alumnosError } = await supabase
+          .from('alumnos')
+          .select('grupo_id')
+          .in('grupo_id', grupoIds);
+
+        if (alumnosError) {
+          console.error('Error al cargar conteo de alumnos:', alumnosError);
+          // No bloqueamos la carga de grupos por error en conteo
+        } else {
+          // Contar alumnos por grupo en cliente (eficiente para MVP)
+          const conteos = {};
+          alumnosData.forEach((alumno) => {
+            conteos[alumno.grupo_id] = (conteos[alumno.grupo_id] || 0) + 1;
+          });
+          setConteoAlumnos(conteos);
+        }
+      } else {
+        setConteoAlumnos({});
+      }
     } catch (error) {
       console.error('Error al cargar grupos:', error);
       setMensaje('No se pudieron cargar los grupos.');
@@ -479,6 +510,10 @@ export default function Panel() {
 
                     <p style={{ margin: '0 0 4px 0' }}>
                       <strong>Código:</strong> {grupo.codigo}
+                    </p>
+
+                    <p style={{ margin: '4px 0 8px 0', color: '#667085', fontSize: '14px' }}>
+                      {conteoAlumnos[grupo.id] || 0} alumno{(conteoAlumnos[grupo.id] || 0) !== 1 ? 's' : ''}
                     </p>
 
                     {grupo.nota_interna && (

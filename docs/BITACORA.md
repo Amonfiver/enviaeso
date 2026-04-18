@@ -527,5 +527,34 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 10  
+## 2026-04-18 - Contador de alumnos visible en tarjetas de grupo
+
+**Objetivo:** Mostrar en el panel del profesor el número total de alumnos por cada grupo, sin mostrar emails y sin depender de abrir la vista de alumnos.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadido estado `conteoAlumnos` para almacenar el conteo por grupo_id
+- [x] Modificada función `cargarGrupos()` para cargar también el conteo de alumnos:
+  - Consulta a Supabase con `.select('grupo_id')` (sin email, sin nombre, solo el ID del grupo)
+  - Conteo realizado en cliente agrupando por `grupo_id`
+  - Error en conteo no bloquea la carga de grupos (robustez)
+- [x] Mostrado contador en cada tarjeta de grupo: "{N} alumno(s)"
+- [x] Actualizada cabecera descriptiva de Panel.jsx reflejando nueva funcionalidad
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadido contador de alumnos visible en tarjetas de grupo, consulta eficiente sin traer emails, estado de conteo, actualización de cabecera |
+
+### Notas para sesiones futuras
+- **Privacidad garantizada:** La consulta para el conteo solo trae `grupo_id`, no consulta ni expone emails ni nombres de alumnos
+- **Implementación eficiente:** Un solo query para todos los grupos, conteo en cliente (O(n)), sin joins complejos
+- **Sin dependencias:** El contador se muestra inmediatamente sin necesidad de abrir "Ver alumnos"
+- **Pluralización correcta:** "0 alumnos", "1 alumno", "N alumnos"
+- **Robustez:** Si falla el conteo, los grupos siguen cargando (el error solo se loguea)
+- **Vista de alumnos intacta:** La funcionalidad "Ver alumnos" sigue funcionando igual, mostrando nombres cuando se expande
+
+---
+
+**Total de sesiones registradas:** 11  
 **Última actualización:** 18 de abril de 2025
