@@ -1,6 +1,7 @@
 /**
  * Propósito:
  * Pantalla temporal del panel del profesor para crear, editar, borrar y visualizar grupos.
+ * Incluye vista de alumnos por grupo respetando privacidad (sin mostrar emails).
  *
  * Alcance:
  * MVP puente sin autenticación real.
@@ -12,11 +13,12 @@
  * - Permite guardar una nota interna opcional por grupo
  * - Permite editar nombre y nota_interna de grupos existentes
  * - Permite borrar grupos con confirmación
+ * - Permite ver alumnos de cada grupo sin exponer emails (solo nombre)
  *
  * Limitaciones:
  * - Aún no hay login oficial
  * - No se permite editar el código de grupo
- * - Aún no hay detalle de alumnos por grupo
+ * - Vista de alumnos es de solo lectura
  */
 
 import { useEffect, useState } from 'react';
@@ -41,6 +43,11 @@ export default function Panel() {
   const [editNota, setEditNota] = useState('');
   const [loadingEdicion, setLoadingEdicion] = useState(false);
   const [loadingBorrado, setLoadingBorrado] = useState(null);
+
+  // Estado para vista de alumnos de un grupo
+  const [grupoAlumnosAbierto, setGrupoAlumnosAbierto] = useState(null);
+  const [alumnos, setAlumnos] = useState([]);
+  const [loadingAlumnos, setLoadingAlumnos] = useState(false);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -216,6 +223,12 @@ export default function Panel() {
         setEditNota('');
       }
 
+      // Si teníamos la vista de alumnos de este grupo abierta, limpiarla
+      if (grupoAlumnosAbierto === grupo.id) {
+        setGrupoAlumnosAbierto(null);
+        setAlumnos([]);
+      }
+
       await cargarGrupos();
     } catch (error) {
       console.error('Error al borrar grupo:', error);
@@ -223,6 +236,47 @@ export default function Panel() {
       setTipoMensaje('error');
     } finally {
       setLoadingBorrado(null);
+    }
+  };
+
+  /**
+   * Carga los alumnos de un grupo específico.
+   * Solo trae los campos necesarios (id, nombre) respetando privacidad.
+   * No consulta ni muestra emails de los alumnos.
+   */
+  const cargarAlumnos = async (grupoId) => {
+    // Si ya está abierto, cerrar
+    if (grupoAlumnosAbierto === grupoId) {
+      setGrupoAlumnosAbierto(null);
+      setAlumnos([]);
+      return;
+    }
+
+    setGrupoAlumnosAbierto(grupoId);
+    setLoadingAlumnos(true);
+    setAlumnos([]);
+
+    try {
+      const { data, error } = await supabase
+        .from('alumnos')
+        .select('id, nombre')
+        .eq('grupo_id', grupoId)
+        .order('nombre', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      setAlumnos(data || []);
+    } catch (error) {
+      console.error('Error al cargar alumnos:', error);
+      setMensaje('No se pudieron cargar los alumnos.');
+      setTipoMensaje('error');
+      // En caso de error, limpiar la vista de alumnos para no insinuar que el grupo está vacío
+      setGrupoAlumnosAbierto(null);
+      setAlumnos([]);
+    } finally {
+      setLoadingAlumnos(false);
     }
   };
 
@@ -444,6 +498,77 @@ export default function Panel() {
                     >
                       Creado: {new Date(grupo.created_at).toLocaleString()}
                     </p>
+
+                    {/* Botón Ver alumnos */}
+                    <button
+                      onClick={() => cargarAlumnos(grupo.id)}
+                      disabled={loadingBorrado === grupo.id}
+                      style={{
+                        marginTop: '12px',
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        minWidth: 'auto',
+                        backgroundColor: '#f9fafb',
+                        color: '#344054',
+                        border: '1px solid #d0d5dd',
+                      }}
+                    >
+                      {grupoAlumnosAbierto === grupo.id ? 'Ocultar alumnos' : 'Ver alumnos'}
+                    </button>
+
+                    {/* Sección expandible de alumnos */}
+                    {grupoAlumnosAbierto === grupo.id && (
+                      <div
+                        style={{
+                          marginTop: '12px',
+                          padding: '12px',
+                          backgroundColor: '#f9fafb',
+                          borderRadius: '8px',
+                          border: '1px solid #e4e7ec',
+                        }}
+                      >
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#344054' }}>
+                          Alumnos de {grupo.nombre}
+                        </h4>
+
+                        {loadingAlumnos ? (
+                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
+                            Cargando alumnos...
+                          </p>
+                        ) : alumnos.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
+                            Aún no hay alumnos en este grupo.
+                          </p>
+                        ) : (
+                          <>
+                            <p
+                              style={{
+                                margin: '0 0 8px 0',
+                                fontSize: '13px',
+                                color: '#667085',
+                                fontWeight: '500',
+                              }}
+                            >
+                              Total: {alumnos.length} alumno{alumnos.length !== 1 ? 's' : ''}
+                            </p>
+                            <ul
+                              style={{
+                                margin: 0,
+                                paddingLeft: '16px',
+                                fontSize: '14px',
+                                color: '#344054',
+                              }}
+                            >
+                              {alumnos.map((alumno) => (
+                                <li key={alumno.id} style={{ marginBottom: '4px' }}>
+                                  {alumno.nombre}
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

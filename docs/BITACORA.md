@@ -443,7 +443,64 @@ Cada entrada sigue esta estructura:
   3. Flujo de alumno: acceso por código y visualización de materiales
 - **La tabla `grupos` ya tiene `on delete cascade`**: al borrar un grupo, se eliminan automáticamente las relaciones dependientes
 
+
 ---
 
-**Total de sesiones registradas:** 7  
-**Última actualización:** 16 de abril de 2025
+## 2025-04-18 - Vista de alumnos por grupo en panel del profesor
+
+**Objetivo:** Implementar la visualización de alumnos por grupo dentro del panel del profesor, respetando la privacidad (sin mostrar emails de los alumnos).  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadido estado local para gestionar la vista de alumnos: `grupoAlumnosAbierto`, `alumnos`, `loadingAlumnos`
+- [x] Creada función `cargarAlumnos(grupoId)` que consulta Supabase filtrando por grupo_id
+- [x] **Consulta a Supabase limitada a campos necesarios:** solo `id` y `nombre` de la tabla `alumnos`
+- [x] **No se consulta ni se muestra el campo `email`** en ninguna parte de esta vista
+- [x] Añadido botón "Ver alumnos" en cada tarjeta de grupo
+- [x] Implementada sección expandible que muestra:
+  - Nombre del grupo
+  - Total de alumnos
+  - Lista ordenada de nombres de alumnos
+- [x] Mensaje amigable cuando no hay alumnos en el grupo
+- [x] Actualizada cabecera descriptiva del archivo `Panel.jsx` reflejando nueva funcionalidad
+- [x] Añadido JSDoc a la función `cargarAlumnos` documentando el respeto a la privacidad
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadida vista de alumnos por grupo con sección expandible, botón "Ver alumnos", consulta limitada a campos necesarios (id, nombre), sin exposición de emails |
+
+### Notas para sesiones futuras
+- **Confirmación de privacidad:** La consulta a Supabase usa `.select('id, nombre')` explícitamente, excluyendo el campo `email` de la tabla `alumnos`. La UI solo renderiza `alumno.nombre`, nunca el email.
+- **UX implementada:** Sección expandible simple (panel desplegable) coherente con el diseño actual del panel. El mismo botón alterna entre "Ver alumnos" y "Ocultar alumnos".
+- **Estado local:** No se usa estado global ni contexto; la lista de alumnos se carga por demanda y se limpia al cerrar la vista.
+- **Próximos pasos sugeridos**:
+  1. Implementar autenticación real con Supabase Auth (reemplazar `PROFESOR_ID_TEMPORAL`)
+  2. Permitir subir materiales a un grupo
+  3. Crear flujo de envío de materiales a alumnos
+  4. Implementar flujo de alumno: acceso por código y visualización de materiales
+
+---
+
+## 2025-04-18 - Ajustes de robustez en vista de alumnos
+
+**Objetivo:** Mejorar la robustez de la vista de alumnos por grupo sin cambiar el alcance funcional.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Si `cargarAlumnos()` falla, cerrar automáticamente la vista de alumnos para no insinuar que el grupo está vacío
+- [x] Si se borra un grupo que tiene la vista de alumnos abierta, limpiar el estado relacionado (`grupoAlumnosAbierto` y `alumnos`)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadida limpieza de estado de alumnos en caso de error al cargar y al borrar grupo con vista abierta |
+
+### Notas para sesiones futuras
+- **Privacidad mantenida:** Sigue sin consultarse ni mostrarse el campo `email` en ninguna parte de esta vista.
+- **Cambios mínimos:** Solo se añadió manejo de estado en dos casos de borde, sin refactorizar ni cambiar la arquitectura.
+
+---
+
+**Total de sesiones registradas:** 9  
+**Última actualización:** 18 de abril de 2025
