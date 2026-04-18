@@ -287,6 +287,24 @@ export default function Panel() {
   };
 
   /**
+   * Copia un mensaje de invitación listo para enviar a los alumnos.
+   * Incluye instrucciones y el código del grupo.
+   * Muestra feedback usando el sistema de mensajes existente.
+   */
+  const handleCopiarInvitacion = async (codigo) => {
+    const textoInvitacion = `Hola, entra en enviaeso.com, escribe tu nombre y tu correo, y usa este código de grupo: ${codigo}`;
+    try {
+      await navigator.clipboard.writeText(textoInvitacion);
+      setMensaje('Invitación copiada correctamente.');
+      setTipoMensaje('success');
+    } catch (error) {
+      console.error('Error al copiar invitación:', error);
+      setMensaje('No se pudo copiar la invitación. Inténtalo manualmente.');
+      setTipoMensaje('error');
+    }
+  };
+
+  /**
    * Carga los alumnos de un grupo específico.
    * Solo trae los campos necesarios (id, nombre) respetando privacidad.
    * No consulta ni muestra emails de los alumnos.
@@ -616,6 +634,22 @@ export default function Panel() {
                         }}
                       >
                         Copiar código
+                      </button>
+                      <button
+                        onClick={() => handleCopiarInvitacion(grupo.codigo)}
+                        disabled={loadingBorrado === grupo.id}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '12px',
+                          minWidth: 'auto',
+                          backgroundColor: '#e0f2fe',
+                          color: '#0369a1',
+                          border: '1px solid #7dd3fc',
+                          borderRadius: '6px',
+                          marginLeft: '8px',
+                        }}
+                      >
+                        Copiar invitación
                       </button>
                     </p>
 

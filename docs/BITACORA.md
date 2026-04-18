@@ -58,6 +58,38 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-18 - Botón "Copiar invitación" en tarjetas de grupo
+
+**Objetivo:** Añadir un botón "Copiar invitación" en cada tarjeta de grupo para que el profesor pueda compartir fácilmente un mensaje listo para enviar por WhatsApp o similar, facilitando la prueba real del lunes.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] Añadida función `handleCopiarInvitacion(codigo)` que:
+  - Construye texto: "Hola, entra en enviaeso.com, escribe tu nombre y tu correo, y usa este código de grupo: {CODIGO}"
+  - Copia al portapapeles mediante `navigator.clipboard.writeText()`
+  - Usa el sistema de mensajes existente para feedback
+- [x] Añadido botón "Copiar invitación" junto al botón "Copiar código" en cada tarjeta
+- [x] Estilo distintivo pero coherente: fondo azul claro (#e0f2fe), texto azul (#0369a1), borde azul
+- [x] Botón deshabilitado durante operaciones de borrado (consistencia UX)
+- [x] **Mantenido botón "Copiar código" existente:** Ambos botones coexisten
+- [x] **Sin cambios en backend:** Solo usa API nativa del navegador
+- [x] **Sin exposición de emails:** No modifica consultas ni lógica de privacidad
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Añadida función `handleCopiarInvitacion`, botón "Copiar invitación" en tarjetas de grupo, feedback mediante sistema de mensajes existente |
+
+### Notas para sesiones futuras
+- **Texto de invitación exacto:** "Hola, entra en enviaeso.com, escribe tu nombre y tu correo, y usa este código de grupo: {CODIGO}"
+- **Mensaje de éxito:** "Invitación copiada correctamente."
+- **Mensaje de error:** "No se pudo copiar la invitación. Inténtalo manualmente."
+- **UX optimizada para WhatsApp:** El texto está pensado para copiar y pegar directamente
+- **Preparado para la prueba del lunes:** El profesor puede invitar alumnos en segundos sin redactar mensajes
+- **Diferenciación visual:** "Copiar código" (gris) vs "Copiar invitación" (azul) para distinguir funciones
+
+---
+
 ## 2026-04-18 - Botón "Actualizar" en panel del profesor
 
 **Objetivo:** Añadir un botón "Actualizar" en el panel del profesor para refrescar manualmente la información sin recargar la página completa, facilitando la prueba real del lunes con profesor y alumnos.  
