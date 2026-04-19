@@ -58,6 +58,44 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Fix: Carga del nombre del profesor en el panel
+
+**Objetivo:** Corregir que el nombre del profesor no se mostraba en el panel aunque existía en la tabla `profesores`.  
+**Estado:** ✅ Completado
+
+### Causa exacta del fallo
+El `Panel.jsx` estaba usando solo el objeto `user` devuelto por `obtenerUsuarioActual()` (de Supabase Auth), que contiene `id`, `email` y `user_metadata`, pero **no consultaba la tabla `profesores`** donde realmente se guarda el `nombre`. Además, el render estaba apuntando a `profesor?.user_metadata?.nombre` en lugar del campo correcto.
+
+### Acciones realizadas
+- [x] **Modificado `useEffect` de verificación de auth** en `Panel.jsx`:
+  - Después de obtener el `user` de Supabase Auth, ahora consulta la tabla `profesores` con `.select('id, email, nombre').eq('id', user.id).single()`
+  - Combinar datos de auth con datos de la tabla: `setProfesor({ ...user, ...profesorData })`
+  - Si falla la carga de la tabla, fallback a `{ ...user, nombre: null }` para no romper nada
+- [x] **Corregido el render del saludo**:
+  - Antes: `profesor?.user_metadata?.nombre` (campo inexistente)
+  - Después: `profesor?.nombre` (campo correcto de la tabla `profesores`)
+  - Fallback: si no hay nombre, muestra "Bienvenido." en lugar de cadena vacía
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Carga explícita desde tabla `profesores`, combinación de datos auth+BD, corrección del campo en render |
+
+### Cómo queda ahora la carga del profesor en panel
+1. Se verifica autenticación con `obtenerUsuarioActual()` → obtiene `user` de Supabase Auth
+2. Se consulta tabla `profesores` filtrando por `user.id` → obtiene `nombre` (y otros datos)
+3. Se combinan ambos objetos: `{ ...userAuth, ...userBD }`
+4. El estado `profesor` ahora tiene acceso a: `id`, `email`, `nombre`, y todos los campos de auth
+5. El saludo muestra: "Hola, {nombre}. " si existe, o "Bienvenido. " si no
+
+### Cómo probar manualmente que el nombre ya se muestra
+1. Asegurarse de que el registro del profesor en tabla `profesores` tiene el campo `nombre` relleno (verificar en Supabase Dashboard)
+2. Hacer login en `/login` con ese profesor
+3. Al entrar en `/panel`, debe aparecer el saludo: "Hola, {nombre}. Crea un grupo..."
+4. Si el nombre está vacío o no existe el registro, debe aparecer: "Bienvenido. Crea un grupo..."
+
+---
+
 ## 2026-04-19 - Autenticación real del profesor: eliminado PROFESOR_ID_TEMPORAL
 
 **Objetivo:** Eliminar el ID temporal del profesor y conectar el panel con la identidad real del usuario autenticado. Guardar nombre del profesor y mejorar mensajes de error en registro.  

@@ -96,7 +96,7 @@ export default function Panel() {
   // Estado para último envío del grupo (trazabilidad mínima)
   const [ultimoEnvioGrupo, setUltimoEnvioGrupo] = useState({});
 
-  // Verificar autenticación al cargar
+  // Verificar autenticación al cargar y cargar datos del profesor desde BD
   useEffect(() => {
     const verificarAuth = async () => {
       const { user, error } = await obtenerUsuarioActual();
@@ -108,7 +108,24 @@ export default function Panel() {
       }
       
       console.log('[Panel] Usuario autenticado:', user.id);
-      setProfesor(user);
+      
+      // Cargar datos del profesor desde la tabla profesores (incluyendo nombre)
+      const { data: profesorData, error: profesorError } = await supabase
+        .from('profesores')
+        .select('id, email, nombre')
+        .eq('id', user.id)
+        .single();
+      
+      if (profesorError) {
+        console.error('[Panel] Error al cargar datos del profesor:', profesorError.message);
+        // Si no se encuentra en la tabla, usar los datos básicos de auth
+        setProfesor({ ...user, nombre: null });
+      } else {
+        console.log('[Panel] Datos del profesor cargados:', profesorData?.nombre);
+        // Combinar datos de auth con datos de la tabla profesores
+        setProfesor({ ...user, ...profesorData });
+      }
+      
       setLoadingAuth(false);
     };
     
@@ -905,9 +922,9 @@ export default function Panel() {
         <div>
           <h1>Panel del profesor</h1>
           <p>
-            {profesor?.user_metadata?.nombre 
-              ? `Hola, ${profesor.user_metadata.nombre}. ` 
-              : ''}
+            {profesor?.nombre 
+              ? `Hola, ${profesor.nombre}. ` 
+              : 'Bienvenido. '}
             Crea un grupo y obtén un código para compartir con tus alumnos.
           </p>
         </div>
