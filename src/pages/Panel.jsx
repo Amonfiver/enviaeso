@@ -19,6 +19,7 @@
  * - Muestra contador de alumnos visible en cada tarjeta de grupo
  * - Incluye prueba controlada de envío de emails individuales
  * - Permite enviar avisos reales a alumnos seleccionados por nombre (email oculto)
+ * - Permite enviar avisos a todos los alumnos de un grupo ("Avisar a todos")
  *
  * Limitaciones:
  * - Aún no hay login oficial
@@ -26,8 +27,8 @@
  * - Vista de alumnos es de solo lectura
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
  * - Envío de emails de prueba sin autenticación adicional
- * - No hay "avisar a todos" todavía (solo individual)
  * - No se registra trazabilidad de envíos en tabla envios/envios_alumnos
+ * - Envío grupal secuencial sin rate-limiting avanzado
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -84,6 +85,9 @@ export default function Panel() {
   // Estado para envío de aviso a alumno individual
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null); // { id, nombre, email }
   const [loadingAvisoAlumno, setLoadingAvisoAlumno] = useState(false);
+
+  // Estado para envío de aviso a todos los alumnos de un grupo
+  const [loadingAvisarATodos, setLoadingAvisarATodos] = useState(false);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -613,6 +617,81 @@ export default function Panel() {
     setLoadingAvisoAlumno(false);
   };
 
+  /**
+   * Envía un aviso a todos los alumnos del grupo actualmente visible.
+   * Pide confirmación previa indicando cuántos alumnos recibirán el aviso.
+   * Envío secuencial con pausa breve entre cada email para no saturar.
+   * Muestra resumen al finalizar: total, enviados, errores.
+   * Los emails nunca se muestran en pantalla, solo los nombres.
+   */
+  const handleAvisarATodos = async () => {
+    if (alumnos.length === 0) {
+      setMensaje('No hay alumnos en este grupo para enviar avisos.');
+      setTipoMensaje('error');
+      return;
+    }
+
+    // Confirmación previa
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que quieres enviar un aviso a todos los alumnos de este grupo?\n\n` +
+      `Total de destinatarios: ${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''}\n\n` +
+      `Se enviará un email a cada alumno usando su dirección registrada.`
+    );
+
+    if (!confirmacion) {
+      return;
+    }
+
+    setLoadingAvisarATodos(true);
+    setMensaje('Enviando avisos... Esto puede tardar unos segundos.');
+    setTipoMensaje('');
+
+    let enviados = 0;
+    let errores = 0;
+    const erroresDetalle = [];
+
+    // Envío secuencial con pausa breve entre cada email
+    for (const alumno of alumnos) {
+      try {
+        const resultado = await enviarCorreoReal({
+          to: alumno.email,
+          subject: 'Aviso de tu grupo en EnviaEso',
+          html: `<p>Hola ${alumno.nombre},</p><p>Este es un mensaje de aviso enviado por tu profesor desde <strong>EnviaEso</strong>.</p><p>Revisa tu grupo para ver si hay novedades o materiales disponibles.</p><p>---<br>Enviado desde EnviaEso</p>`,
+          text: `Hola ${alumno.nombre},\n\nEste es un mensaje de aviso enviado por tu profesor desde EnviaEso.\n\nRevisa tu grupo para ver si hay novedades o materiales disponibles.\n\n---\nEnviado desde EnviaEso`
+        });
+
+        if (resultado.success) {
+          enviados++;
+        } else {
+          errores++;
+          erroresDetalle.push(`${alumno.nombre}: ${resultado.error}`);
+          console.error(`Error al enviar a ${alumno.nombre}:`, resultado.error);
+        }
+
+        // Pausa breve de 300ms entre envíos para no saturar Resend
+        if (alumnos.indexOf(alumno) < alumnos.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      } catch (error) {
+        errores++;
+        erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
+        console.error(`Error inesperado al enviar a ${alumno.nombre}:`, error);
+      }
+    }
+
+    // Resumen final
+    let mensajeResumen = `Envío completado: ${enviados} enviado${enviados !== 1 ? 's' : ''}`;
+    if (errores > 0) {
+      mensajeResumen += `, ${errores} error${errores !== 1 ? 'es' : ''}`;
+      console.error('Detalle de errores:', erroresDetalle);
+    }
+    mensajeResumen += ` de ${alumnos.length} total.`;
+
+    setMensaje(mensajeResumen);
+    setTipoMensaje(errores === 0 ? 'success' : 'error');
+    setLoadingAvisarATodos(false);
+  };
+
   return (
     <div className="container">
       <h1>Panel del profesor</h1>
@@ -1009,6 +1088,43 @@ export default function Panel() {
                               ))}
                             </ul>
 
+                            {/* Envío de aviso a todos los alumnos del grupo */}
+                            <div
+                              style={{
+                                marginTop: '12px',
+                                padding: '12px',
+                                backgroundColor: '#fefce8',
+                                borderRadius: '6px',
+                                border: '1px solid #fde047',
+                              }}
+                            >
+                              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#854d0e' }}>
+                                📢 Enviar aviso a todos:
+                              </p>
+                              <button
+                                onClick={handleAvisarATodos}
+                                disabled={loadingAvisarATodos}
+                                style={{
+                                  padding: '8px 16px',
+                                  fontSize: '13px',
+                                  minWidth: 'auto',
+                                  backgroundColor: '#eab308',
+                                  color: '#ffffff',
+                                  border: '1px solid #ca8a04',
+                                  borderRadius: '6px',
+                                  width: '100%',
+                                }}
+                              >
+                                {loadingAvisarATodos 
+                                  ? 'Enviando a todos...' 
+                                  : `Avisar a todos (${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''})`
+                                }
+                              </button>
+                              <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#a16207' }}>
+                                ⚠️ Se enviará un email a cada alumno usando su dirección registrada
+                              </p>
+                            </div>
+
                             {/* Envío de aviso a alumno individual (privacidad: solo nombre visible) */}
                             <div
                               style={{
@@ -1020,7 +1136,7 @@ export default function Panel() {
                               }}
                             >
                               <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#667085' }}>
-                                📧 Enviar aviso a:
+                                📧 Enviar aviso individual:
                               </p>
                               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 <select
@@ -1029,7 +1145,7 @@ export default function Panel() {
                                     const alumno = alumnos.find((a) => a.id === e.target.value);
                                     setAlumnoSeleccionado(alumno || null);
                                   }}
-                                  disabled={loadingAvisoAlumno}
+                                  disabled={loadingAvisoAlumno || loadingAvisarATodos}
                                   style={{
                                     flex: '1',
                                     minWidth: '150px',
@@ -1049,7 +1165,7 @@ export default function Panel() {
                                 </select>
                                 <button
                                   onClick={handleEnviarAvisoAlumno}
-                                  disabled={!alumnoSeleccionado || loadingAvisoAlumno}
+                                  disabled={!alumnoSeleccionado || loadingAvisoAlumno || loadingAvisarATodos}
                                   style={{
                                     padding: '8px 16px',
                                     fontSize: '13px',

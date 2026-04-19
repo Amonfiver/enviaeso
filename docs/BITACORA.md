@@ -1061,5 +1061,63 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 19  
+## 2026-04-19 - Botón "Avisar a todos" para envío grupal de emails
+
+**Objetivo:** Añadir en el panel una acción controlada de "Avisar a todos" para un grupo concreto, enviando un correo real a todos los alumnos del grupo usando sus emails internos, sin mostrar esos emails en la UI.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Añadido estado `loadingAvisarATodos`**: boolean para controlar el estado de carga durante el envío grupal
+
+- [x] **Creada función `handleAvisarATodos()`**:
+  - Validación de que haya alumnos en el grupo
+  - Confirmación previa con `window.confirm()` indicando el número total de destinatarios
+  - Envío secuencial a cada alumno usando `enviarCorreoReal()`
+  - Pausa de 300ms entre envíos para no saturar Resend
+  - Contadores de enviados y errores
+  - Resumen final con mensaje tipo: "Envío completado: N enviados, X errores de Y total"
+  - Los emails se usan internamente desde el estado `alumnos`, nunca se muestran en pantalla
+
+- [x] **Añadida UI del botón "Avisar a todos"**:
+  - Sección destacada con fondo amarillo claro (`#fefce8`) y borde amarillo
+  - Botón amarillo (`#eab308`) con conteo dinámico: "Avisar a todos (N alumnos)"
+  - Estado de carga: "Enviando a todos..."
+  - Texto informativo: "⚠️ Se enviará un email a cada alumno usando su dirección registrada"
+  - Deshabilitado durante el envío grupal
+
+- [x] **Actualizada cabecera de `Panel.jsx`**:
+  - Añadida decisión: "Permite enviar avisos a todos los alumnos de un grupo ('Avisar a todos')"
+  - Añadida limitación: "Envío grupal secuencial sin rate-limiting avanzado"
+  - Eliminada limitación obsoleta: "No hay 'avisar a todos' todavía (solo individual)"
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Estado `loadingAvisarATodos`, función `handleAvisarATodos`, UI de botón "Avisar a todos", cabecera actualizada |
+
+### Notas para sesiones futuras
+- **Privacidad mantenida**: El profesor nunca ve los emails de los alumnos. Solo ve el conteo y puede enviar a todos usando las direcciones almacenadas internamente.
+- **Estrategia de envío**: Secuencial con pausa de 300ms entre emails. Para grupos grandes (>50 alumnos), considerar:
+  - Aumentar la pausa entre envíos
+  - Implementar cola asíncrona real
+  - Usar batch processing de Resend si está disponible
+- **Resumen claro**: El mensaje final indica exactamente cuántos se enviaron correctamente, cuántos fallaron y el total.
+- **Para probar desde la UI**:
+  1. Ir a `/panel`
+  2. En un grupo con alumnos, pulsar "Ver alumnos"
+  3. Ver la sección amarilla "📢 Enviar aviso a todos"
+  4. Pulsar el botón "Avisar a todos (N alumnos)"
+  5. Confirmar en el diálogo
+  6. Esperar el resumen de envío
+  7. Verificar mensaje de éxito y revisar bandejas de los alumnos
+- **Qué falta para cerrar el flujo profesional**:
+  - Registrar trazabilidad en tabla `envios`/`envios_alumnos`
+  - Permitir personalizar el asunto y contenido del email antes de enviar
+  - Añadir rate-limiting más robusto (límites por hora/día)
+  - Posibilidad de programar envíos para fecha/hora futura
+  - Dashboard de estado de envíos (quién abrió, cuándo, etc.)
+
+---
+
+**Total de sesiones registradas:** 20  
 **Última actualización:** 19 de abril de 2025
