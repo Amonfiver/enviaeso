@@ -47,6 +47,7 @@ import {
   obtenerOCrearPerfilProfesor,
   actualizarPerfilProfesor,
 } from '../services/auth';
+import { enviarCorreoReal } from '../services/email';
 
 export default function Panel() {
   const navigate = useNavigate();
@@ -694,31 +695,95 @@ Enviado desde EnviaEso • enviaeso.com`;
     setMensaje('');
     setTipoMensaje('');
 
-    const { html, text } = generarContenidoEmail(
-      alumnoSeleccionado.nombre,
-      grupoActual.nombre,
-      profesor?.nombre || 'Tu profesor',
-      grupoActual.codigo,
-      alumnoSeleccionado.email
-    );
+    let trazabilidadOk = false;
+    let errorTrazabilidad = null;
 
-    const resultado = await enviarCorreoReal({
-      to: alumnoSeleccionado.email,
-      subject: `Nuevo material en ${grupoActual.nombre} - EnviaEso`,
-      html,
-      text
-    });
+    try {
+      const { html, text } = generarContenidoEmail(
+        alumnoSeleccionado.nombre,
+        grupoActual.nombre,
+        profesor?.nombre || 'Tu profesor',
+        grupoActual.codigo,
+        alumnoSeleccionado.email
+      );
 
-    if (resultado.success) {
-      setMensaje(`Aviso enviado correctamente a ${alumnoSeleccionado.nombre}. ID: ${resultado.messageId}`);
-      setTipoMensaje('success');
-      setAlumnoSeleccionado(null); // Deseleccionar después de enviar
-    } else {
-      setMensaje(`Error al enviar aviso: ${resultado.error}`);
+      const resultado = await enviarCorreoReal({
+        to: alumnoSeleccionado.email,
+        subject: `Nuevo material en ${grupoActual.nombre} - EnviaEso`,
+        html,
+        text
+      });
+
+      // Registrar envío en base de datos (trazabilidad)
+      try {
+        console.log('[Trazabilidad Individual] Intentando registrar envío...');
+        console.log('[Trazabilidad Individual] Éxito del envío:', resultado.success);
+        
+        // 1. Crear registro en envios
+        const { data: envioCreado, error: envioError } = await supabase
+          .from('envios')
+          .insert({
+            grupo_id: grupoAlumnosAbierto,
+            descripcion_opcional: `Envío individual: ${resultado.success ? 'ok' : 'error'}`,
+            fecha_envio: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (envioError) {
+          console.error('[Trazabilidad Individual] Error al insertar en envios:', envioError);
+          throw envioError;
+        }
+
+        console.log('[Trazabilidad Individual] Envío creado con ID:', envioCreado?.id);
+
+        // 2. Registrar en envios_alumnos - usando valores que cumplan la constraint
+        // NOTA: Intentando con valores en inglés ya que la constraint podría esperar eso
+        const estadoValor = resultado.success ? 'sent' : 'failed';
+        console.log('[Trazabilidad Individual] Valor de estado a insertar:', estadoValor);
+        
+        const { error: destinatarioError } = await supabase
+          .from('envios_alumnos')
+          .insert({
+            envio_id: envioCreado.id,
+            alumno_id: alumnoSeleccionado.id,
+            estado: estadoValor,
+          });
+
+        if (destinatarioError) {
+          console.error('[Trazabilidad Individual] Error al insertar en envios_alumnos:', destinatarioError);
+          console.error('[Trazabilidad Individual] Código:', destinatarioError.code);
+          console.error('[Trazabilidad Individual] Mensaje:', destinatarioError.message);
+          console.error('[Trazabilidad Individual] Detalles:', destinatarioError.details);
+          throw destinatarioError;
+        }
+
+        trazabilidadOk = true;
+        console.log('[Trazabilidad Individual] ✓ Registrado correctamente');
+        
+        // Actualizar UI con último envío
+        await cargarUltimoEnvio(grupoAlumnosAbierto);
+      } catch (errorTraz) {
+        errorTrazabilidad = errorTraz;
+        console.error('[Trazabilidad Individual] ✗ Error:', errorTraz);
+      }
+
+      if (resultado.success) {
+        setMensaje(`Aviso enviado correctamente a ${alumnoSeleccionado.nombre}. ID: ${resultado.messageId}${trazabilidadOk ? ' ✓ Registrado en BD.' : ' ⚠️ Error al registrar en BD.'}`);
+        setTipoMensaje('success');
+        setAlumnoSeleccionado(null); // Deseleccionar después de enviar
+      } else {
+        setMensaje(`Error al enviar aviso: ${resultado.error}${errorTrazabilidad ? ' | Error BD: ' + errorTrazabilidad.message : ''}`);
+        setTipoMensaje('error');
+      }
+    } catch (error) {
+      console.error('[handleEnviarAvisoAlumno] Error inesperado:', error);
+      setMensaje('Error inesperado al enviar el aviso. Inténtalo de nuevo.');
       setTipoMensaje('error');
+    } finally {
+      // SIEMPRE resetear el loading, incluso si hay error
+      setLoadingAvisoAlumno(false);
     }
-
-    setLoadingAvisoAlumno(false);
   };
 
   /**
@@ -905,13 +970,19 @@ Enviado desde EnviaEso • enviaeso.com`;
       console.log('[Trazabilidad] Envío creado con ID:', envioCreado?.id);
 
       // 2. Registrar destinatarios en envios_alumnos
-      const registrosAlumnos = resultadosPorAlumno.map((resultado) => ({
-        envio_id: envioCreado.id,
-        alumno_id: resultado.alumnoId,
-        estado: resultado.exito ? 'enviado' : 'error',
-      }));
+      // NOTA: Intentando con valores en inglés ya que la constraint podría esperar eso
+      const registrosAlumnos = resultadosPorAlumno.map((resultado) => {
+        const estadoValor = resultado.exito ? 'sent' : 'failed';
+        console.log('[Trazabilidad] Estado para alumno', resultado.alumnoId, ':', estadoValor);
+        return {
+          envio_id: envioCreado.id,
+          alumno_id: resultado.alumnoId,
+          estado: estadoValor,
+        };
+      });
 
       console.log('[Trazabilidad] Insertando en envios_alumnos:', registrosAlumnos.length, 'registros');
+      console.log('[Trazabilidad] Valores de estado a insertar:', registrosAlumnos.map(r => r.estado));
       
       const { data: destinatariosData, error: destinatariosError } = await supabase
         .from('envios_alumnos')
@@ -936,6 +1007,9 @@ Enviado desde EnviaEso • enviaeso.com`;
     } catch (error) {
       errorTrazabilidad = error;
       console.error('[Trazabilidad] ✗ Error al registrar envío en base de datos:', error);
+    } finally {
+      // SIEMPRE resetear el loading, incluso si hay error en trazabilidad
+      setLoadingAvisarATodos(false);
     }
 
     // Resumen final
@@ -955,7 +1029,6 @@ Enviado desde EnviaEso • enviaeso.com`;
 
     setMensaje(mensajeResumen);
     setTipoMensaje(errores === 0 && trazabilidadOk ? 'success' : 'error');
-    setLoadingAvisarATodos(false);
   };
 
   const handleLogout = async () => {

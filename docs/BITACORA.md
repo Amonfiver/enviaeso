@@ -1423,6 +1423,72 @@ El `Panel.jsx` estaba usando solo el objeto `user` devuelto por `obtenerUsuarioA
 
 ---
 
+## 2026-04-19 - Fix: Corrección de valores de estado en trazabilidad de envíos
+
+**Objetivo:** Corregir el error de constraint `envios_alumnos_estado_check` y asegurar que los loading states siempre se reseteen.  
+**Estado:** ✅ Completado
+
+### Causa raíz exacta
+El código insertaba valores `'enviado'` y `'error'` en el campo `estado` de `envios_alumnos`, pero la constraint de la base de datos esperaba valores en inglés: `'sent'` y `'failed'`.
+
+### Cambios realizados
+
+**1. Corrección de valores en `Panel.jsx`:**
+- Cambiado `'enviado'` → `'sent'`
+- Cambiado `'error'` → `'failed'`
+- Aplicado en ambas funciones: `handleEnviarAvisoAlumno` y `handleAvisarATodos`
+
+**2. Añadida trazabilidad al envío individual:**
+- Antes: `handleEnviarAvisoAlumno` no registraba en BD
+- Ahora: registra en `envios` y `envios_alumnos` igual que el envío masivo
+
+**3. Asegurado reset de loading states en `finally`:**
+- `handleEnviarAvisoAlumno`: `setLoadingAvisoAlumno(false)` en bloque `finally`
+- `handleAvisarATodos`: `setLoadingAvisarATodos(false)` en bloque `finally`
+- La UI ya no se queda bloqueada si falla la trazabilidad
+
+**4. Logs temporales de diagnóstico:**
+- Añadidos logs en desarrollo para mostrar qué valores se intentan insertar
+- Facilitan debug si la constraint sigue fallando
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Valores de estado cambiados a 'sent'/'failed', trazabilidad en envío individual, loading states en finally, logs de diagnóstico |
+
+### Valores de estado
+| Antes | Después |
+|-------|---------|
+| `'enviado'` | `'sent'` |
+| `'error'` | `'failed'` |
+
+### Cómo probar manualmente
+
+**1. Aviso individual:**
+- Ir a `/panel` → seleccionar grupo → "Ver alumnos"
+- Seleccionar alumno → "Enviar aviso"
+- Verificar que el email se envía y el mensaje muestra "✓ Registrado en BD."
+- Verificar que el botón deja de decir "Enviando..."
+
+**2. Avisar a todos:**
+- En el mismo grupo, pulsar "Avisar a todos"
+- Confirmar envío
+- Verificar mensaje de éxito con "✓ Registrado en BD."
+- Verificar que el botón vuelve a su estado normal
+
+**3. Caso de error sin bloqueo:**
+- Si la constraint sigue fallando, el mensaje mostrará "⚠️ ERROR al registrar en BD"
+- El botón debe volver a su estado normal (no quedarse en "Enviando...")
+- La consola del navegador mostrará logs detallados del error
+
+### Logs temporales añadidos
+- `[Trazabilidad Individual] Valor de estado a insertar:`
+- `[Trazabilidad] Estado para alumno X:`
+- `[Trazabilidad] Valores de estado a insertar:`
+- Estos logs aparecen en la consola del navegador en modo desarrollo
+
+---
+
 ## 2026-04-19 - Cierre del círculo: email con enlace, acceso auto y descarga mejorada
 
 **Objetivo:** Cerrar el círculo real del producto: que el email lleve un enlace útil de vuelta, que el acceso del alumno sea más cómodo, y mejorar la descarga.  
