@@ -1003,5 +1003,63 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 18  
+## 2026-04-19 - Envío de aviso individual a alumno sin exponer email
+
+**Objetivo:** Añadir una acción controlada en el panel para enviar un aviso real a un solo alumno de un grupo, seleccionándolo por nombre, usando internamente su email almacenado en base de datos pero sin mostrar ese email en la UI.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Modificada función `cargarAlumnos()`**:
+  - La consulta ahora trae `id, nombre, email` (antes solo `id, nombre`)
+  - El email se mantiene en memoria lógica del estado `alumnos` pero **nunca se renderiza en pantalla**
+  - Documentación actualizada explicando que el email es para uso interno de envío
+
+- [x] **Añadidos estados para envío individual**:
+  - `alumnoSeleccionado`: objeto `{ id, nombre, email }` del alumno seleccionado en el dropdown
+  - `loadingAvisoAlumno`: boolean para estado de carga durante el envío
+
+- [x] **Creada función `handleEnviarAvisoAlumno()`**:
+  - Valida que haya un alumno seleccionado
+  - Usa `enviarCorreoReal()` con el email interno `alumnoSeleccionado.email` (invisible para el profesor)
+  - Asunto: "Aviso de tu grupo en EnviaEso"
+  - Contenido HTML y texto plano personalizado con el nombre del alumno
+  - Feedback de éxito/error mediante sistema existente (`setMensaje`, `setTipoMensaje`)
+  - Limpia la selección después de envío exitoso
+
+- [x] **Añadida UI controlada dentro de la sección de alumnos**:
+  - Dropdown `<select>` para elegir alumno por nombre (solo nombres visibles)
+  - Botón "Enviar aviso" (deshabilitado si no hay selección o durante carga)
+  - Indicador visual "✓ Se enviará aviso a: {nombre}" cuando hay selección
+  - Estilo consistente: fondo blanco, borde sutil, botón azul
+
+- [x] **Actualizada cabecera del archivo `Panel.jsx`**:
+  - Añadido "Permite enviar avisos por email a alumnos individuales sin exponer sus direcciones" al propósito
+  - Añadida decisión: "Permite enviar avisos reales a alumnos seleccionados por nombre (email oculto)"
+  - Añadidas limitaciones: "No hay 'avisar a todos' todavía (solo individual)" y "No se registra trazabilidad de envíos en tabla envios/envios_alumnos"
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Consulta de alumnos incluye email (uso interno), estados para selección, handler de envío, UI de dropdown + botón en sección de alumnos, cabecera actualizada |
+
+### Notas para sesiones futuras
+- **Privacidad garantizada**: El profesor solo ve nombres de alumnos en el dropdown. El email se usa internamente desde el estado, pero nunca se muestra en la interfaz.
+- **Flujo validado**: Cargar alumnos → Seleccionar por nombre → Enviar aviso → Email real se envía sin exposición.
+- **Para probar desde la UI**:
+  1. Ir a `/panel`
+  2. En un grupo con alumnos, pulsar "Ver alumnos"
+  3. En la sección "📧 Enviar aviso a:", seleccionar un alumno del dropdown
+  4. Verificar que aparece "✓ Se enviará aviso a: {nombre}"
+  5. Pulsar "Enviar aviso"
+  6. Confirmar mensaje de éxito y revisar bandeja del alumno
+- **Qué falta para "avisar a todos"**:
+  - Iterar sobre todos los alumnos del grupo en lugar de uno seleccionado
+  - Implementar rate-limiting o cola de envíos para no saturar Resend
+  - Registrar trazabilidad en tabla `envios`/`envios_alumnos`
+  - Posiblemente añadir plantilla de email editable antes de enviar
+- **Deuda técnica**: No se registra trazabilidad de envíos en base de datos todavía. Esto es necesario para saber quién recibió qué y cuándo.
+
+---
+
+**Total de sesiones registradas:** 19  
 **Última actualización:** 19 de abril de 2025

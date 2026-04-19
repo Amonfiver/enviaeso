@@ -3,6 +3,7 @@
  * Pantalla temporal del panel del profesor para crear, editar, borrar y visualizar grupos.
  * Incluye vista de alumnos por grupo respetando privacidad (sin mostrar emails).
  * Muestra contador de alumnos por grupo visible en cada tarjeta.
+ * Permite enviar avisos por email a alumnos individuales sin exponer sus direcciones.
  *
  * Alcance:
  * MVP puente sin autenticación real.
@@ -17,6 +18,7 @@
  * - Permite ver alumnos de cada grupo sin exponer emails (solo nombre)
  * - Muestra contador de alumnos visible en cada tarjeta de grupo
  * - Incluye prueba controlada de envío de emails individuales
+ * - Permite enviar avisos reales a alumnos seleccionados por nombre (email oculto)
  *
  * Limitaciones:
  * - Aún no hay login oficial
@@ -24,6 +26,8 @@
  * - Vista de alumnos es de solo lectura
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
  * - Envío de emails de prueba sin autenticación adicional
+ * - No hay "avisar a todos" todavía (solo individual)
+ * - No se registra trazabilidad de envíos en tabla envios/envios_alumnos
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -76,6 +80,10 @@ export default function Panel() {
   // Estado para prueba de envío de email
   const [emailPrueba, setEmailPrueba] = useState('');
   const [loadingEmailPrueba, setLoadingEmailPrueba] = useState(false);
+
+  // Estado para envío de aviso a alumno individual
+  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null); // { id, nombre, email }
+  const [loadingAvisoAlumno, setLoadingAvisoAlumno] = useState(false);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -328,8 +336,8 @@ export default function Panel() {
 
   /**
    * Carga los alumnos de un grupo específico.
-   * Solo trae los campos necesarios (id, nombre) respetando privacidad.
-   * No consulta ni muestra emails de los alumnos.
+   * Trae id, nombre y email (uso interno para envío, no se muestra en UI).
+   * El email se mantiene en memoria lógica pero nunca se renderiza.
    */
   const cargarAlumnos = async (grupoId) => {
     // Si ya está abierto, cerrar
@@ -342,11 +350,12 @@ export default function Panel() {
     setGrupoAlumnosAbierto(grupoId);
     setLoadingAlumnos(true);
     setAlumnos([]);
+    setAlumnoSeleccionado(null); // Limpiar selección previa
 
     try {
       const { data, error } = await supabase
         .from('alumnos')
-        .select('id, nombre')
+        .select('id, nombre, email')
         .eq('grupo_id', grupoId)
         .order('nombre', { ascending: true });
 
@@ -567,6 +576,41 @@ export default function Panel() {
     }
 
     setLoadingEmailPrueba(false);
+  };
+
+  /**
+   * Envía un aviso real a un alumno específico seleccionado.
+   * Usa el email almacenado internamente (no visible en UI) para enviar el correo.
+   * El profesor nunca ve el email del alumno.
+   */
+  const handleEnviarAvisoAlumno = async () => {
+    if (!alumnoSeleccionado) {
+      setMensaje('Selecciona un alumno primero.');
+      setTipoMensaje('error');
+      return;
+    }
+
+    setLoadingAvisoAlumno(true);
+    setMensaje('');
+    setTipoMensaje('');
+
+    const resultado = await enviarCorreoReal({
+      to: alumnoSeleccionado.email,
+      subject: 'Aviso de tu grupo en EnviaEso',
+      html: `<p>Hola ${alumnoSeleccionado.nombre},</p><p>Este es un mensaje de aviso enviado por tu profesor desde <strong>EnviaEso</strong>.</p><p>Revisa tu grupo para ver si hay novedades o materiales disponibles.</p><p>---<br>Enviado desde EnviaEso</p>`,
+      text: `Hola ${alumnoSeleccionado.nombre},\n\nEste es un mensaje de aviso enviado por tu profesor desde EnviaEso.\n\nRevisa tu grupo para ver si hay novedades o materiales disponibles.\n\n---\nEnviado desde EnviaEso`
+    });
+
+    if (resultado.success) {
+      setMensaje(`Aviso enviado correctamente a ${alumnoSeleccionado.nombre}. ID: ${resultado.messageId}`);
+      setTipoMensaje('success');
+      setAlumnoSeleccionado(null); // Deseleccionar después de enviar
+    } else {
+      setMensaje(`Error al enviar aviso: ${resultado.error}`);
+      setTipoMensaje('error');
+    }
+
+    setLoadingAvisoAlumno(false);
   };
 
   return (
@@ -964,6 +1008,67 @@ export default function Panel() {
                                 </li>
                               ))}
                             </ul>
+
+                            {/* Envío de aviso a alumno individual (privacidad: solo nombre visible) */}
+                            <div
+                              style={{
+                                marginTop: '12px',
+                                padding: '12px',
+                                backgroundColor: '#ffffff',
+                                borderRadius: '6px',
+                                border: '1px solid #d0d5dd',
+                              }}
+                            >
+                              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#667085' }}>
+                                📧 Enviar aviso a:
+                              </p>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <select
+                                  value={alumnoSeleccionado?.id || ''}
+                                  onChange={(e) => {
+                                    const alumno = alumnos.find((a) => a.id === e.target.value);
+                                    setAlumnoSeleccionado(alumno || null);
+                                  }}
+                                  disabled={loadingAvisoAlumno}
+                                  style={{
+                                    flex: '1',
+                                    minWidth: '150px',
+                                    padding: '8px 12px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #d0d5dd',
+                                    font: 'inherit',
+                                    fontSize: '14px',
+                                  }}
+                                >
+                                  <option value="">Seleccionar alumno...</option>
+                                  {alumnos.map((alumno) => (
+                                    <option key={alumno.id} value={alumno.id}>
+                                      {alumno.nombre}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={handleEnviarAvisoAlumno}
+                                  disabled={!alumnoSeleccionado || loadingAvisoAlumno}
+                                  style={{
+                                    padding: '8px 16px',
+                                    fontSize: '13px',
+                                    minWidth: 'auto',
+                                    backgroundColor: '#3b82f6',
+                                    color: '#ffffff',
+                                    border: '1px solid #2563eb',
+                                    borderRadius: '6px',
+                                  }}
+                                >
+                                  {loadingAvisoAlumno ? 'Enviando...' : 'Enviar aviso'}
+                                </button>
+                              </div>
+                              {alumnoSeleccionado && (
+                                <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#059669' }}>
+                                  ✓ Se enviará aviso a: {alumnoSeleccionado.nombre}
+                                </p>
+                              )}
+                            </div>
                           </>
                         )}
                       </div>
