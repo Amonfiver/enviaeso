@@ -27,8 +27,8 @@
  * - Vista de alumnos es de solo lectura
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
  * - Envío de emails de prueba sin autenticación adicional
- * - No se registra trazabilidad de envíos en tabla envios/envios_alumnos
  * - Envío grupal secuencial sin rate-limiting avanzado
+ * - No hay tracking de aperturas ni descargas
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -88,6 +88,9 @@ export default function Panel() {
 
   // Estado para envío de aviso a todos los alumnos de un grupo
   const [loadingAvisarATodos, setLoadingAvisarATodos] = useState(false);
+
+  // Estado para último envío del grupo (trazabilidad mínima)
+  const [ultimoEnvioGrupo, setUltimoEnvioGrupo] = useState({});
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -341,6 +344,7 @@ export default function Panel() {
   /**
    * Carga los alumnos de un grupo específico.
    * Trae id, nombre y email (uso interno para envío, no se muestra en UI).
+   * También carga el último envío registrado para mostrar trazabilidad.
    * El email se mantiene en memoria lógica pero nunca se renderiza.
    */
   const cargarAlumnos = async (grupoId) => {
@@ -357,6 +361,7 @@ export default function Panel() {
     setAlumnoSeleccionado(null); // Limpiar selección previa
 
     try {
+      // Cargar alumnos
       const { data, error } = await supabase
         .from('alumnos')
         .select('id, nombre, email')
@@ -368,6 +373,9 @@ export default function Panel() {
       }
 
       setAlumnos(data || []);
+
+      // Cargar último envío para trazabilidad
+      await cargarUltimoEnvio(grupoId);
     } catch (error) {
       console.error('Error al cargar alumnos:', error);
       setMensaje('No se pudieron cargar los alumnos.');
@@ -618,9 +626,67 @@ export default function Panel() {
   };
 
   /**
+   * Carga el último envío registrado para un grupo específico.
+   * Usado para mostrar resumen de trazabilidad en la UI.
+   */
+  const cargarUltimoEnvio = async (grupoId) => {
+    try {
+      console.log(`[Trazabilidad] Cargando último envío para grupo ${grupoId}...`);
+      
+      // Obtener el último envío del grupo
+      const { data: envioData, error: envioError } = await supabase
+        .from('envios')
+        .select('id, fecha_envio, descripcion_opcional')
+        .eq('grupo_id', grupoId)
+        .order('fecha_envio', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (envioError) {
+        if (envioError.code === 'PGRST116') {
+          console.log(`[Trazabilidad] No hay envíos registrados para grupo ${grupoId}`);
+        } else {
+          console.error('[Trazabilidad] Error al cargar último envío:', envioError);
+          console.error('[Trazabilidad] Código:', envioError.code, 'Mensaje:', envioError.message);
+          if (envioError.details) console.error('[Trazabilidad] Detalles:', envioError.details);
+        }
+        setUltimoEnvioGrupo((prev) => ({ ...prev, [grupoId]: null }));
+        return;
+      }
+
+      console.log(`[Trazabilidad] Último envío encontrado: ${envioData.id}`);
+
+      // Contar destinatarios del envío
+      const { count: totalDestinatarios, error: countError } = await supabase
+        .from('envios_alumnos')
+        .select('*', { count: 'exact', head: true })
+        .eq('envio_id', envioData.id);
+
+      if (countError) {
+        console.error('[Trazabilidad] Error al contar destinatarios:', countError);
+        console.error('[Trazabilidad] Código:', countError.code, 'Mensaje:', countError.message);
+      } else {
+        console.log(`[Trazabilidad] Destinatarios contados: ${totalDestinatarios || 0}`);
+      }
+
+      setUltimoEnvioGrupo((prev) => ({
+        ...prev,
+        [grupoId]: {
+          ...envioData,
+          totalDestinatarios: totalDestinatarios || 0,
+        },
+      }));
+    } catch (error) {
+      console.error('[Trazabilidad] Error inesperado al cargar último envío:', error);
+      setUltimoEnvioGrupo((prev) => ({ ...prev, [grupoId]: null }));
+    }
+  };
+
+  /**
    * Envía un aviso a todos los alumnos del grupo actualmente visible.
    * Pide confirmación previa indicando cuántos alumnos recibirán el aviso.
    * Envío secuencial con pausa breve entre cada email para no saturar.
+   * Registra el envío en tablas envios y envios_alumnos.
    * Muestra resumen al finalizar: total, enviados, errores.
    * Los emails nunca se muestran en pantalla, solo los nombres.
    */
@@ -649,6 +715,7 @@ export default function Panel() {
     let enviados = 0;
     let errores = 0;
     const erroresDetalle = [];
+    const resultadosPorAlumno = []; // Para registrar en envios_alumnos
 
     // Envío secuencial con pausa breve entre cada email
     for (const alumno of alumnos) {
@@ -658,6 +725,12 @@ export default function Panel() {
           subject: 'Aviso de tu grupo en EnviaEso',
           html: `<p>Hola ${alumno.nombre},</p><p>Este es un mensaje de aviso enviado por tu profesor desde <strong>EnviaEso</strong>.</p><p>Revisa tu grupo para ver si hay novedades o materiales disponibles.</p><p>---<br>Enviado desde EnviaEso</p>`,
           text: `Hola ${alumno.nombre},\n\nEste es un mensaje de aviso enviado por tu profesor desde EnviaEso.\n\nRevisa tu grupo para ver si hay novedades o materiales disponibles.\n\n---\nEnviado desde EnviaEso`
+        });
+
+        resultadosPorAlumno.push({
+          alumnoId: alumno.id,
+          exito: resultado.success,
+          error: resultado.error || null,
         });
 
         if (resultado.success) {
@@ -674,21 +747,101 @@ export default function Panel() {
         }
       } catch (error) {
         errores++;
+        resultadosPorAlumno.push({
+          alumnoId: alumno.id,
+          exito: false,
+          error: error.message,
+        });
         erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
         console.error(`Error inesperado al enviar a ${alumno.nombre}:`, error);
       }
+    }
+
+    // Registrar el envío en base de datos
+    let trazabilidadOk = false;
+    let errorTrazabilidad = null;
+    
+    try {
+      const grupoId = grupoAlumnosAbierto;
+      
+      console.log('[Trazabilidad] Iniciando registro en BD...');
+      console.log('[Trazabilidad] Grupo ID:', grupoId);
+      console.log('[Trazabilidad] Resultados a registrar:', resultadosPorAlumno.length);
+      
+      // 1. Crear registro en envios
+      console.log('[Trazabilidad] Insertando en tabla envios...');
+      const { data: envioCreado, error: envioError } = await supabase
+        .from('envios')
+        .insert({
+          grupo_id: grupoId,
+          descripcion_opcional: `Envío grupal: ${enviados} ok, ${errores} errores`,
+          fecha_envio: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (envioError) {
+        console.error('[Trazabilidad] Error al insertar en envios:', envioError);
+        console.error('[Trazabilidad] Código:', envioError.code);
+        console.error('[Trazabilidad] Mensaje:', envioError.message);
+        if (envioError.details) console.error('[Trazabilidad] Detalles:', envioError.details);
+        if (envioError.hint) console.error('[Trazabilidad] Hint:', envioError.hint);
+        throw new Error(`Error en tabla envios: ${envioError.message} (código: ${envioError.code})`);
+      }
+
+      console.log('[Trazabilidad] Envío creado con ID:', envioCreado?.id);
+
+      // 2. Registrar destinatarios en envios_alumnos
+      const registrosAlumnos = resultadosPorAlumno.map((resultado) => ({
+        envio_id: envioCreado.id,
+        alumno_id: resultado.alumnoId,
+        estado: resultado.exito ? 'enviado' : 'error',
+      }));
+
+      console.log('[Trazabilidad] Insertando en envios_alumnos:', registrosAlumnos.length, 'registros');
+      
+      const { data: destinatariosData, error: destinatariosError } = await supabase
+        .from('envios_alumnos')
+        .insert(registrosAlumnos)
+        .select();
+
+      if (destinatariosError) {
+        console.error('[Trazabilidad] Error al insertar en envios_alumnos:', destinatariosError);
+        console.error('[Trazabilidad] Código:', destinatariosError.code);
+        console.error('[Trazabilidad] Mensaje:', destinatariosError.message);
+        if (destinatariosError.details) console.error('[Trazabilidad] Detalles:', destinatariosError.details);
+        throw new Error(`Error en tabla envios_alumnos: ${destinatariosError.message} (código: ${destinatariosError.code})`);
+      }
+
+      console.log('[Trazabilidad] Destinatarios registrados:', destinatariosData?.length || 0);
+
+      // 3. Actualizar estado local con el último envío
+      await cargarUltimoEnvio(grupoId);
+      
+      trazabilidadOk = true;
+      console.log(`[Trazabilidad] ✓ Envío ${envioCreado.id} registrado correctamente con ${registrosAlumnos.length} destinatarios`);
+    } catch (error) {
+      errorTrazabilidad = error;
+      console.error('[Trazabilidad] ✗ Error al registrar envío en base de datos:', error);
     }
 
     // Resumen final
     let mensajeResumen = `Envío completado: ${enviados} enviado${enviados !== 1 ? 's' : ''}`;
     if (errores > 0) {
       mensajeResumen += `, ${errores} error${errores !== 1 ? 'es' : ''}`;
-      console.error('Detalle de errores:', erroresDetalle);
+      console.error('Detalle de errores de email:', erroresDetalle);
     }
     mensajeResumen += ` de ${alumnos.length} total.`;
+    
+    // Añadir estado de trazabilidad al mensaje
+    if (trazabilidadOk) {
+      mensajeResumen += ' ✓ Registrado en BD.';
+    } else if (errorTrazabilidad) {
+      mensajeResumen += ' ⚠️ ERROR al registrar en BD: ' + errorTrazabilidad.message;
+    }
 
     setMensaje(mensajeResumen);
-    setTipoMensaje(errores === 0 ? 'success' : 'error');
+    setTipoMensaje(errores === 0 && trazabilidadOk ? 'success' : 'error');
     setLoadingAvisarATodos(false);
   };
 
@@ -1087,6 +1240,29 @@ export default function Panel() {
                                 </li>
                               ))}
                             </ul>
+
+                            {/* Resumen del último envío (trazabilidad) */}
+                            {ultimoEnvioGrupo[grupo.id] && (
+                              <div
+                                style={{
+                                  marginTop: '12px',
+                                  padding: '12px',
+                                  backgroundColor: '#f0f9ff',
+                                  borderRadius: '6px',
+                                  border: '1px solid #bae6fd',
+                                }}
+                              >
+                                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#0369a1', fontWeight: '500' }}>
+                                  📨 Último envío:
+                                </p>
+                                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#0c4a6e' }}>
+                                  {new Date(ultimoEnvioGrupo[grupo.id].fecha_envio).toLocaleString()}
+                                </p>
+                                <p style={{ margin: '0', fontSize: '12px', color: '#075985' }}>
+                                  {ultimoEnvioGrupo[grupo.id].descripcion_opcional} • {ultimoEnvioGrupo[grupo.id].totalDestinatarios} destinatario{ultimoEnvioGrupo[grupo.id].totalDestinatarios !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            )}
 
                             {/* Envío de aviso a todos los alumnos del grupo */}
                             <div

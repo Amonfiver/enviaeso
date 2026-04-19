@@ -58,6 +58,40 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Fix: Trazabilidad usando columna correcta `descripcion_opcional`
+
+**Objetivo:** Corregir el nombre de columna en la tabla `envios` para que la trazabilidad funcione realmente.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Identificación del problema real**: La columna en la tabla `envios` se llama `descripcion_opcional`, no `descripcion`
+- [x] **Corrección quirúrgica en `Panel.jsx`**:
+  - Inserción en `envios`: cambiado `descripcion` → `descripcion_opcional`
+  - Select en `cargarUltimoEnvio()`: cambiado `descripcion` → `descripcion_opcional`
+  - Renderizado en UI: cambiado `descripcion` → `descripcion_opcional`
+- [x] **Mantenido todo el manejo de errores transparente** añadido previamente
+- [x] **No se muestran emails en la UI** (privacidad mantenida)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Sustituido `descripcion` por `descripcion_opcional` en 3 lugares: insert, select y renderizado |
+
+### Notas para sesiones futuras
+- **Estructura real de la tabla `envios`**:
+  - `id`, `grupo_id`, `fecha_envio`, `descripcion_opcional`, `created_at`
+- **Cómo probar manualmente**:
+  1. Ir a `/panel` → seleccionar grupo con alumnos → "Ver alumnos"
+  2. Pulsar "Avisar a todos" y confirmar
+  3. Esperar a que termine el envío
+  4. **Mensaje esperado si todo sale bien**:  
+     `Envío completado: N enviados de X total. ✓ Registrado en BD.`
+  5. Verificar que aparece el resumen azul "📨 Último envío" con la descripción
+  6. Verificar en Supabase Dashboard que la tabla `envios` tiene el registro
+- **Si falla**: El mensaje mostrará `⚠️ ERROR al registrar en BD:` con el detalle del error
+
+---
+
 ## 2026-04-18 - Subida de documentos por grupo en panel del profesor
 
 **Objetivo:** Implementar la funcionalidad para que el profesor pueda subir documentos a cada grupo, gestionarlos y eliminarlos, usando Supabase Storage y la tabla `materiales`.  
@@ -308,7 +342,6 @@ Cada entrada sigue esta estructura:
   - P013 añadida: No prometer "sin límite" como claim literal
   - T002 marcada como OBSOLETA (sin base de datos → ahora sí hay BD compleja)
   - T004-T008 añadidas: decisiones técnicas del nuevo modelo (dos frontends, Supabase completo, Storage, Resend solo notificaciones, trazabilidad en BD)
-  - Decisiones diferidas actualizadas (D001-D006) con nuevas opciones relevantes
 
 ### Archivos modificados
 | Archivo | Acción | Descripción |
@@ -369,7 +402,7 @@ Cada entrada sigue esta estructura:
 
 - [x] **Documentación de Home.jsx desalineado**:
   - Confirmado que Home.jsx actual está obsoleto respecto a la nueva arquitectura
-  - Señalado para rediseño en próxima iteración de implementación
+  - Señalado explícitamente para rediseño en próxima iteración de implementación
 
 ### Archivos modificados
 | Archivo | Acción | Descripción |
@@ -452,6 +485,7 @@ Cada entrada sigue esta estructura:
   - Alumnos como inscripciones por grupo (mismo email puede estar en varios grupos)
 - **Próximo paso**: Implementación directa puede comenzar con configuración de Supabase
 
+
 ---
 
 ## 2025-04-16 - Migración de estructura: de `app/` a `src/` en Vite
@@ -527,6 +561,7 @@ Cada entrada sigue esta estructura:
   4. Implementar flujo de creación de grupos
   5. Reemplazar Home.jsx temporal con páginas reales del flujo alumno
 - **Seguro eliminar `app/`**: Una vez verificado que todo funciona en `src/`, la carpeta `app/` puede eliminarse sin pérdida de información (todo útil ya está migrado)
+
 
 ---
 
@@ -954,8 +989,6 @@ Cada entrada sigue esta estructura:
 
 ---
 
----
-
 ## 2026-04-19 - Fix CORS para Edge Function send-test-email
 
 **Objetivo:** Resolver el fallo de invocación desde navegador a la Edge Function `send-test-email`, que funcionaba desde PowerShell pero fallaba desde la UI con error "Failed to send a request to the Edge Function".  
@@ -1119,5 +1152,76 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 20  
-**Última actualización:** 19 de abril de 2025
+## 2026-04-19 - Trazabilidad mínima de envíos grupales en base de datos
+
+**Objetivo:** Registrar los envíos grupales en base de datos y mostrar en el panel un resumen simple del último envío realizado por grupo.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Añadido estado `ultimoEnvioGrupo`**: almacena el último envío por grupo_id con fecha, descripción y conteo de destinatarios
+
+- [x] **Creada función `cargarUltimoEnvio(grupoId)`**:
+  - Consulta la tabla `envios` filtrando por grupo_id, ordenado por fecha descendente
+  - Obtiene el envío más reciente (si existe)
+  - Cuenta destinatarios en `envios_alumnos` para ese envío
+  - Actualiza el estado local con los datos del último envío
+
+- [x] **Modificada función `handleAvisarATodos()`**:
+  - Durante el envío, guarda resultados por alumno (id, éxito/error) en array `resultadosPorAlumno`
+  - Al finalizar el envío, crea registro en tabla `envios` con:
+    - `grupo_id`: grupo actual
+    - `descripcion`: resumen del resultado (ej. "Envío grupal: 5 ok, 1 error")
+    - `fecha_envio`: timestamp ISO
+  - Inserta registros en `envios_alumnos` para cada destinatario:
+    - `envio_id`: id del envío creado
+    - `alumno_id`: id del alumno
+    - `estado`: "enviado" o "error" según resultado
+  - Actualiza estado local llamando a `cargarUltimoEnvio()`
+
+- [x] **Modificada función `cargarAlumnos()`**:
+  - Ahora también carga el último envío del grupo cuando se abre la vista de alumnos
+  - Mantiene la funcionalidad existente de cargar lista de alumnos
+
+- [x] **Añadida UI de resumen del último envío**:
+  - Sección azul claro (`#f0f9ff`) en la vista de alumnos
+  - Muestra: fecha/hora formateada, descripción del resultado, número de destinatarios
+  - Solo aparece si hay envíos previos para el grupo
+  - Icono 📨 para identificar visualmente
+
+- [x] **Actualizada cabecera de `Panel.jsx`**:
+  - Eliminada limitación obsoleta: "No se registra trazabilidad de envíos en tabla envios/envios_alumnos"
+  - Añadida nueva limitación: "No hay tracking de aperturas ni descargas"
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Estado `ultimoEnvioGrupo`, función `cargarUltimoEnvio`, lógica de registro en `handleAvisarATodos`, carga de último envío en `cargarAlumnos`, UI de resumen, cabecera actualizada |
+
+### Notas para sesiones futuras
+- **Privacidad mantenida**: El resumen del envío no muestra emails, solo conteos y resultados agregados
+- **Estructura de datos utilizada**:
+  - Tabla `envios`: id, grupo_id, descripcion, fecha_envio
+  - Tabla `envios_alumnos`: id, envio_id, alumno_id, estado ("enviado"/"error")
+- **Flujo de registro**:
+  1. Enviar emails a todos los alumnos
+  2. Crear registro en `envios` con resumen
+  3. Crear registros en `envios_alumnos` con estado individual
+  4. Recargar último envío para mostrar en UI
+- **Para probar desde la UI**:
+  1. Ir a `/panel`
+  2. En un grupo con alumnos, pulsar "Ver alumnos"
+  3. Si hay envíos previos, ver resumen azul "📨 Último envío"
+  4. Pulsar "Avisar a todos" y completar el envío
+  5. Ver que el resumen azul se actualiza automáticamente con el nuevo envío
+  6. Verificar en Supabase Dashboard que las tablas `envios` y `envios_alumnos` tienen los registros
+- **Qué falta para evolucionar a seguimiento más inteligente**:
+  - Tracking de aperturas: requiere pixel de seguimiento o enlaces trackeados en emails
+  - Tracking de descargas: requiere registrar accesos a materiales
+  - Dashboard completo: lista de todos los envíos históricos, no solo el último
+  - Estadísticas agregadas: tasa de apertura, clics, etc.
+  - Notificaciones de error: alertar al profesor si hay fallos de envío
+
+---
+
+**Total de sesiones registradas:** 22  
+**Última actualización:** 19 de abril de 2026
