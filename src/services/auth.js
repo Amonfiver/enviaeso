@@ -23,12 +23,14 @@
 import { supabase } from './supabase.js';
 
 /**
- * Registra un nuevo profesor con email y contraseña.
+ * Registra un nuevo profesor con nombre, email y contraseña.
+ * @param {string} nombre - Nombre del profesor
  * @param {string} email - Email del profesor
  * @param {string} password - Contraseña (mínimo 6 caracteres)
  * @returns {Promise<{data: object|null, error: Error|null}>}
  */
-export const registrarProfesor = async (email, password) => {
+export const registrarProfesor = async (nombre, email, password) => {
+  // 1. Intentar crear el usuario en Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -36,18 +38,55 @@ export const registrarProfesor = async (email, password) => {
 
   if (error) {
     console.error('[Auth] Error al registrar:', error.message);
+    
+    // Mejorar mensaje para email ya existente
+    if (error.message.includes('User already registered') || 
+        error.message.includes('already exists') ||
+        error.code === 'user_already_exists') {
+      return { 
+        data: null, 
+        error: { 
+          ...error, 
+          message: 'Ya existe una cuenta con este email. ¿Quieres iniciar sesión?' 
+        } 
+      };
+    }
+    
     return { data: null, error };
   }
 
-  // Crear registro en tabla profesores si el auth fue exitoso
+  // 2. Crear registro en tabla profesores si el auth fue exitoso
   if (data.user) {
-    const { error: dbError } = await supabase
+    // Verificar si ya existe el profesor (para evitar duplicados en reintentos)
+    const { data: profesorExistente } = await supabase
       .from('profesores')
-      .insert({ id: data.user.id, email: data.user.email });
+      .select('id')
+      .eq('id', data.user.id)
+      .single();
 
-    if (dbError) {
-      console.error('[Auth] Error al crear registro en profesores:', dbError.message);
-      // No retornamos error para no bloquear, pero logueamos
+    if (!profesorExistente) {
+      const { error: dbError } = await supabase
+        .from('profesores')
+        .insert({ 
+          id: data.user.id, 
+          email: data.user.email,
+          nombre: nombre.trim()
+        });
+
+      if (dbError) {
+        console.error('[Auth] Error al crear registro en profesores:', dbError.message);
+        // No retornamos error para no bloquear, pero logueamos
+      }
+    } else {
+      // Si ya existe, actualizar el nombre por si acaso
+      const { error: updateError } = await supabase
+        .from('profesores')
+        .update({ nombre: nombre.trim() })
+        .eq('id', data.user.id);
+        
+      if (updateError) {
+        console.error('[Auth] Error al actualizar nombre del profesor:', updateError.message);
+      }
     }
   }
 

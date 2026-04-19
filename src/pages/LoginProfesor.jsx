@@ -32,6 +32,7 @@ export default function LoginProfesor() {
 
   // Estados del formulario
   const [modoRegistro, setModoRegistro] = useState(false);
+  const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,9 +72,18 @@ export default function LoginProfesor() {
       return;
     }
 
+    // Validar nombre solo en modo registro
+    const nombreTrim = nombre.trim();
+    if (modoRegistro && !nombreTrim) {
+      setMensaje('El nombre es obligatorio para registrarte.');
+      setTipoMensaje('error');
+      setLoading(false);
+      return;
+    }
+
     let resultado;
     if (modoRegistro) {
-      resultado = await registrarProfesor(emailTrim, password);
+      resultado = await registrarProfesor(nombreTrim, emailTrim, password);
     } else {
       resultado = await loginProfesor(emailTrim, password);
     }
@@ -82,14 +92,26 @@ export default function LoginProfesor() {
       setMensaje(resultado.error.message || 'Error de autenticación.');
       setTipoMensaje('error');
     } else {
-      setMensaje(
-        modoRegistro
-          ? 'Cuenta creada correctamente. Redirigiendo...'
-          : 'Sesión iniciada. Redirigiendo...'
-      );
-      setTipoMensaje('success');
-      // Redirigir al panel tras breve delay
-      setTimeout(() => navigate('/panel'), 1000);
+      // En registro, si la respuesta indica que ya existe el email, no mostrar éxito
+      if (modoRegistro && resultado.data?.user?.identities?.length === 0) {
+        // El usuario ya existía, Supabase devuelve el user pero sin identidades nuevas
+        setMensaje('Ya existe una cuenta con este email. ¿Quieres iniciar sesión?');
+        setTipoMensaje('error');
+        // Cambiar automáticamente a modo login después de un momento
+        setTimeout(() => {
+          setModoRegistro(false);
+          setMensaje('');
+        }, 2000);
+      } else {
+        setMensaje(
+          modoRegistro
+            ? 'Cuenta creada correctamente. Redirigiendo...'
+            : 'Sesión iniciada. Redirigiendo...'
+        );
+        setTipoMensaje('success');
+        // Redirigir al panel tras breve delay
+        setTimeout(() => navigate('/panel'), 1000);
+      }
     }
 
     setLoading(false);
@@ -99,6 +121,8 @@ export default function LoginProfesor() {
     setModoRegistro(!modoRegistro);
     setMensaje('');
     setTipoMensaje('');
+    // Limpiar nombre al cambiar de modo
+    setNombre('');
   };
 
   return (
@@ -113,6 +137,19 @@ export default function LoginProfesor() {
       </p>
 
       <form onSubmit={handleSubmit}>
+        {modoRegistro && (
+          <input
+            type="text"
+            placeholder="Tu nombre (cómo te verán los alumnos)"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            disabled={loading}
+            required
+            autoFocus
+            style={{ marginBottom: '12px' }}
+          />
+        )}
+
         <input
           type="email"
           placeholder="tu@email.com"

@@ -42,13 +42,14 @@ import {
   formatearTamaño,
 } from '../services/storage';
 import { enviarCorreoReal } from '../services/email';
-import { logoutProfesor } from '../services/auth';
-
-// TODO: Reemplazar por el profesor autenticado cuando implementemos login real
-const PROFESOR_ID_TEMPORAL = '8f3de77b-11e4-4fd6-a45c-068368e540a9';
+import { logoutProfesor, obtenerUsuarioActual } from '../services/auth';
 
 export default function Panel() {
   const navigate = useNavigate();
+  
+  // Estado para el profesor autenticado
+  const [profesor, setProfesor] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [notaInterna, setNotaInterna] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -95,15 +96,46 @@ export default function Panel() {
   // Estado para último envío del grupo (trazabilidad mínima)
   const [ultimoEnvioGrupo, setUltimoEnvioGrupo] = useState({});
 
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    const verificarAuth = async () => {
+      const { user, error } = await obtenerUsuarioActual();
+      
+      if (error || !user) {
+        console.log('[Panel] No hay sesión activa, redirigiendo a login');
+        navigate('/login');
+        return;
+      }
+      
+      console.log('[Panel] Usuario autenticado:', user.id);
+      setProfesor(user);
+      setLoadingAuth(false);
+    };
+    
+    verificarAuth();
+  }, [navigate]);
+
+  // Cargar grupos cuando tengamos el profesor
+  useEffect(() => {
+    if (profesor) {
+      cargarGrupos();
+    }
+  }, [profesor]);
+
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
 
     try {
-      // 1. Cargar grupos del profesor
+      // Verificar que tenemos el profesor autenticado
+      if (!profesor) {
+        throw new Error('No hay profesor autenticado');
+      }
+
+      // 1. Cargar grupos del profesor autenticado
       const { data: gruposData, error: gruposError } = await supabase
         .from('grupos')
         .select('id, nombre, codigo, nota_interna, created_at')
-        .eq('profesor_id', PROFESOR_ID_TEMPORAL)
+        .eq('profesor_id', profesor.id)
         .order('created_at', { ascending: false });
 
       if (gruposError) {
@@ -144,9 +176,7 @@ export default function Panel() {
     }
   };
 
-  useEffect(() => {
-    cargarGrupos();
-  }, []);
+  // Eliminado: ahora se carga en el useEffect que depende de profesor
 
   const handleCrearGrupo = async (e) => {
     e.preventDefault();
@@ -166,13 +196,18 @@ export default function Panel() {
     }
 
     try {
+      // Verificar que tenemos el profesor autenticado
+      if (!profesor) {
+        throw new Error('No hay profesor autenticado');
+      }
+
       const codigo = generarCodigoGrupo();
 
       const { data, error } = await supabase
         .from('grupos')
         .insert([
           {
-            profesor_id: PROFESOR_ID_TEMPORAL,
+            profesor_id: profesor.id,
             nombre: nombreNormalizado,
             codigo,
             nota_interna: notaNormalizada || null,
@@ -238,7 +273,7 @@ export default function Panel() {
           nota_interna: notaNormalizada || null,
         })
         .eq('id', grupoId)
-        .eq('profesor_id', PROFESOR_ID_TEMPORAL);
+        .eq('profesor_id', profesor?.id);
 
       if (error) {
         throw error;
@@ -278,7 +313,7 @@ export default function Panel() {
         .from('grupos')
         .delete()
         .eq('id', grupo.id)
-        .eq('profesor_id', PROFESOR_ID_TEMPORAL);
+        .eq('profesor_id', profesor?.id);
 
       if (error) {
         throw error;
@@ -855,12 +890,26 @@ export default function Panel() {
     }
   };
 
+  // Mostrar loading mientras verificamos autenticación
+  if (loadingAuth) {
+    return (
+      <div className="container">
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1>Panel del profesor</h1>
-          <p>Crea un grupo y obtén un código para compartir con tus alumnos.</p>
+          <p>
+            {profesor?.user_metadata?.nombre 
+              ? `Hola, ${profesor.user_metadata.nombre}. ` 
+              : ''}
+            Crea un grupo y obtén un código para compartir con tus alumnos.
+          </p>
         </div>
         <button
           onClick={handleLogout}

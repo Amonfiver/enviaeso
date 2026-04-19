@@ -58,6 +58,53 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Autenticación real del profesor: eliminado PROFESOR_ID_TEMPORAL
+
+**Objetivo:** Eliminar el ID temporal del profesor y conectar el panel con la identidad real del usuario autenticado. Guardar nombre del profesor y mejorar mensajes de error en registro.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Eliminado `PROFESOR_ID_TEMPORAL`** de `Panel.jsx`
+- [x] **Panel.jsx ahora usa `profesor.id`** del usuario autenticado vía `obtenerUsuarioActual()`
+- [x] **Agregada verificación de autenticación** al cargar el panel (redirige a `/login` si no hay sesión)
+- [x] **Actualizado `registrarProfesor()`** en `auth.js` para aceptar y guardar `nombre`
+- [x] **Creado registro en tabla `profesores`** con `id`, `email` y `nombre` del profesor
+- [x] **Agregada protección contra duplicados** al registrar (verifica si ya existe antes de insertar)
+- [x] **Mejorado mensaje de error** cuando el email ya existe: "Ya existe una cuenta con este email. ¿Quieres iniciar sesión?"
+- [x] **Detectado caso de usuario existente** en Supabase (respuesta con `identities.length === 0`)
+- [x] **LoginProfesor.jsx ahora pide nombre** en el formulario de registro
+- [x] **El panel muestra el nombre del profesor** en el saludo si está disponible
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/auth.js` | Modificado | `registrarProfesor` ahora recibe `nombre`, guarda en tabla `profesores`, maneja duplicados y mejora mensajes de error |
+| `src/pages/LoginProfesor.jsx` | Modificado | Agregado campo `nombre` en registro, validación, detección de email existente, cambio automático a modo login |
+| `src/pages/Panel.jsx` | Modificado | Eliminado `PROFESOR_ID_TEMPORAL`, usa `profesor.id` real, verifica autenticación, muestra nombre del profesor |
+
+### Notas para sesiones futuras
+- **Estructura de la tabla `profesores`**:
+  - `id` (UUID, PK) - mismo que Supabase Auth `user.id`
+  - `email` (VARCHAR)
+  - `nombre` (VARCHAR) - nuevo, agregado manualmente en Supabase
+  - `created_at` (TIMESTAMP)
+- **Flujo de autenticación actual**:
+  1. Usuario accede a `/login`
+  2. Si ya tiene sesión, redirige automáticamente a `/panel`
+  3. En registro: pide nombre, email, contraseña → crea auth user + registro en `profesores`
+  4. En login: valida credenciales → redirige a `/panel`
+  5. Panel verifica sesión con `obtenerUsuarioActual()` → si no hay, redirige a `/login`
+  6. Todas las operaciones de grupos usan `profesor.id` del usuario autenticado
+- **Cómo probar manualmente**:
+  1. **Registro nuevo**: Ir a `/login` → "Regístrate" → completar nombre, email, contraseña → debe crear cuenta y redirigir
+  2. **Email ya existente**: Intentar registrar con email usado → mensaje claro + cambio automático a login
+  3. **Acceso a `/panel`**: Sin login debe redirigir a `/login`; con login debe mostrar grupos del profesor
+  4. **Creación de grupo**: En panel, crear grupo → debe aparecer en "Tus grupos" asociado al profesor actual
+  5. **Carga de grupos**: Solo deben aparecer los grupos creados por el profesor logueado
+  6. **Logout**: Botón "Cerrar sesión" debe limpiar sesión y redirigir a `/login`
+
+---
+
 ## 2026-04-19 - Fix: Trazabilidad usando columna correcta `descripcion_opcional`
 
 **Objetivo:** Corregir el nombre de columna en la tabla `envios` para que la trazabilidad funcione realmente.  
