@@ -827,5 +827,35 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 14  
+## 2026-04-19 - Edge Function: remitente configurable via EMAIL_FROM
+
+**Objetivo:** Actualizar la Edge Function `send-test-email` para usar remitente real configurable por variable de entorno (`EMAIL_FROM=noreply@mail.enviaeso.com`), eliminando el fallback a dominio de prueba.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Eliminado remitente hardcodeado** (`onboarding@resend.dev`): La función ahora requiere obligatoriamente la variable de entorno `EMAIL_FROM`
+- [x] **Añadida validación explícita de `EMAIL_FROM`**: Si no está configurada, devuelve error 500 claro: "Error de configuración del servidor: EMAIL_FROM no configurada."
+- [x] **Actualizada documentación de configuración**:
+  - Sección "CONFIGURACION REQUERIDA" actualizada para listar ambos secrets: `RESEND_API_KEY` y `EMAIL_FROM`
+  - Eliminada mención a dominio de prueba `onboarding@resend.dev`
+  - Añadido ejemplo: `noreply@mail.enviaeso.com`
+- [x] **Mensajes de error mejorados**: Más específicos para facilitar diagnóstico (`RESEND_API_KEY no configurada` vs `EMAIL_FROM no configurada`)
+- [x] **Eliminada limitación temporal**: Eliminado "Pendiente: verificación de dominio" ya que ahora se asume dominio verificado
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `supabase/functions/send-test-email/index.ts` | Modificado | Remitente hardcodeado eliminado, EMAIL_FROM obligatorio, validación explícita, documentación actualizada |
+
+### Notas para sesiones futuras
+- **Secrets requeridos ahora** (ambos obligatorios):
+  - `RESEND_API_KEY` - API key de Resend
+  - `EMAIL_FROM` - Dirección remitente verificada (ej: `noreply@mail.enviaeso.com`)
+- **Dominio verificado asumido**: La función espera que `mail.enviaeso.com` ya esté verificado en Resend
+- **Error claro si falta configuración**: La función falla rápido con mensaje específico indicando qué falta
+- **Sin cambios en comportamiento funcional**: La interfaz de entrada/salida es idéntica, solo cambia la fuente del remitente
+
+---
+
+**Total de sesiones registradas:** 15  
 **Última actualización:** 19 de abril de 2025

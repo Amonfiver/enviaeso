@@ -46,17 +46,17 @@
  * - NO incluye rate-limiting (vulnerable a spam si se expone públicamente)
  * - NO incluye logging persistente (solo logs de Supabase Dashboard)
  * - Solo envía correos de prueba, NO implementa plantillas ni envíos masivos
- * - Pendiente: verificación de dominio en Resend para eviar desde dominio propio
  *
  * ================================================================================
  * CONFIGURACION REQUERIDA
  * ================================================================================
  * 1. En Supabase Dashboard → Edge Functions → Variables de entorno:
  *    - Añadir RESEND_API_KEY con tu API key de Resend
+ *    - Añadir EMAIL_FROM con la dirección remitente verificada
+ *      (ejemplo: noreply@mail.enviaeso.com)
  *
  * 2. En Resend Dashboard:
- *    - Verificar dominio remitente (obligatorio para producción)
- *    - O usar dominio de prueba: onboarding@resend.dev
+ *    - Verificar dominio remitente (mail.enviaeso.com debe estar verificado)
  *
  * 3. Para deploy local:
  *    - supabase functions serve
@@ -158,23 +158,30 @@ serve(async (req: Request) => {
       );
     }
 
-    // Obtener API key desde variables de entorno
+    // Obtener secrets desde variables de entorno
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("[send-test-email] RESEND_API_KEY no configurada");
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Error de configuración del servidor. Contacta al administrador.",
+          error: "Error de configuración del servidor: RESEND_API_KEY no configurada.",
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Construir cuerpo de la petición a Resend
-    const fromEmail = "onboarding@resend.dev"; // Dominio de prueba de Resend
-    // Si el usuario tiene dominio verificado, puede cambiar esto via env var
-    const from = Deno.env.get("EMAIL_FROM") || fromEmail;
+    const from = Deno.env.get("EMAIL_FROM");
+    if (!from) {
+      console.error("[send-test-email] EMAIL_FROM no configurada");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Error de configuración del servidor: EMAIL_FROM no configurada.",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const resendBody: Record<string, string> = {
       from,
