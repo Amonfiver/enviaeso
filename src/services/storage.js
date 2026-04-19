@@ -202,3 +202,29 @@ export const formatearTamaño = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
+
+/**
+ * Obtiene una URL firmada para descargar un archivo de Storage.
+ * La URL es válida por un tiempo limitado (por defecto 60 segundos).
+ * @param {string} filePath - Ruta del archivo en Storage
+ * @param {number} expiresIn - Segundos de validez de la URL (default: 60)
+ * @returns {Promise<{url: string|null, error: string|null}>}
+ */
+export const obtenerUrlDescarga = async (filePath, expiresIn = 60) => {
+  try {
+    const { data, error } = await supabase
+      .storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(filePath, expiresIn);
+
+    if (error) {
+      console.error('[Storage] Error al crear URL firmada:', error.message);
+      return { url: null, error: error.message };
+    }
+
+    return { url: data.signedUrl, error: null };
+  } catch (error) {
+    console.error('[Storage] Error inesperado:', error);
+    return { url: null, error: error.message };
+  }
+};

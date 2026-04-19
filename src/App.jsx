@@ -22,6 +22,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import LoginProfesor from './pages/LoginProfesor';
 import Panel from './pages/Panel';
+import AccesoAlumno from './pages/AccesoAlumno';
+import MisMateriales from './pages/MisMateriales';
 import { suscribirCambiosAuth, haySesionActiva } from './services/auth';
 
 function App() {
@@ -76,6 +78,12 @@ function App() {
       <Routes>
         {/* Ruta pública para alumnos */}
         <Route path="/" element={<Home />} />
+
+        {/* Acceso para alumnos: identificación con código + email */}
+        <Route path="/acceso-alumno" element={<AccesoAlumno />} />
+
+        {/* Página de materiales del alumno */}
+        <Route path="/mis-materiales" element={<MisMateriales />} />
 
         {/* Ruta de login/registro (redirige si ya está logueado) */}
         <Route

@@ -1423,6 +1423,160 @@ El `Panel.jsx` estaba usando solo el objeto `user` devuelto por `obtenerUsuarioA
 
 ---
 
+## 2026-04-19 - Flujo de acceso del alumno y eliminación de prueba de email
+
+**Objetivo:** Quitar el bloque de prueba de email del panel y crear un flujo mínimo pero real para que los alumnos puedan acceder y descargar sus materiales.  
+**Estado:** ✅ Completado
+
+### A. Limpiar la UI del panel profesor
+- [x] **Eliminado el bloque de "Prueba de email"** del `Panel.jsx`:
+  - Eliminado import de `enviarCorreoReal` (ya no se usa en panel)
+  - Eliminados estados `emailPrueba` y `loadingEmailPrueba`
+  - Eliminado handler `handleEnviarEmailPrueba`
+  - Eliminada sección completa de la UI (fondo azul claro con formulario)
+  - El panel ahora está más limpio y enfocado en acciones reales del producto
+
+### B. Crear flujo de acceso del alumno
+**1. Nueva página `src/pages/AccesoAlumno.jsx`:**
+- Formulario de acceso con dos campos: código de grupo y email
+- Validación de que ambos campos están completos
+- Lógica de identificación:
+  1. Busca el grupo por código (normalizado a mayúsculas)
+  2. Verifica que existe un alumno con ese email en ese grupo
+  3. Si coincide, redirige a `/mis-materiales` con los datos necesarios
+  4. Si no coincide, muestra mensaje de error claro
+- Sin exponer datos de otros alumnos
+- Sin autenticación persistente (sesión por navegación)
+
+**2. Nueva página `src/pages/MisMateriales.jsx`:**
+- Recibe datos del alumno y grupo vía `location.state`
+- Si no hay datos de acceso, redirige a `/acceso-alumno`
+- Carga y muestra los materiales del grupo usando `listarMaterialesPorGrupo()`
+- Cada material muestra: nombre, tamaño formateado, fecha de subida
+- Botón "Descargar" que genera URL firmada y abre en nueva pestaña
+- Mensaje amigable si no hay materiales disponibles
+- Botón "Salir / Cambiar de grupo" para volver al acceso
+
+**3. Actualización de `src/services/storage.js`:**
+- Nueva función `obtenerUrlDescarga(filePath, expiresIn)`:
+  - Genera URL firmada de Supabase Storage
+  - Validez configurable (default 60 segundos)
+  - Para descarga segura de archivos
+
+**4. Actualización de `src/App.jsx`:**
+- Nuevas importaciones: `AccesoAlumno` y `MisMateriales`
+- Nuevas rutas:
+  - `/acceso-alumno` → página de identificación del alumno
+  - `/mis-materiales` → página de materiales del alumno
+
+### C. Privacidad mantenida
+- El alumno solo ve su propio nombre y los materiales de su grupo
+- No se exponen listados de otros alumnos
+- No se muestran emails ajenos
+- El código de grupo solo valida, no revela información
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Eliminado bloque de prueba de email (import, estados, handler, UI) |
+| `src/pages/AccesoAlumno.jsx` | Creado | Página de acceso para alumnos con código + email |
+| `src/pages/MisMateriales.jsx` | Creado | Página de visualización y descarga de materiales |
+| `src/services/storage.js` | Modificado | Nueva función `obtenerUrlDescarga()` |
+| `src/App.jsx` | Modificado | Nuevas rutas `/acceso-alumno` y `/mis-materiales` |
+
+### Cómo queda ahora el flujo del alumno
+
+**Acceso:**
+1. El alumno va a `/acceso-alumno`
+2. Introduce su código de grupo (ej. ABC123) y su email
+3. El sistema valida que el email pertenece a ese grupo
+4. Si es válido, redirige a `/mis-materiales`
+
+**Visualización:**
+1. Muestra saludo personalizado con el nombre del alumno
+2. Muestra el nombre del grupo
+3. Lista todos los materiales disponibles con nombre, tamaño y fecha
+4. Cada material tiene botón "Descargar"
+
+**Descarga:**
+1. Al pulsar "Descargar", se genera URL firmada de 60 segundos
+2. Se abre en nueva pestaña para descargar el archivo
+3. Si hay error, se muestra mensaje informativo
+
+### Cómo se identifica el alumno
+- **Código de grupo**: identifica el grupo (público, se comparte)
+- **Email**: identifica al alumno dentro del grupo (privado)
+- Ambos deben coincidir en la tabla `alumnos` para permitir acceso
+- Sin contraseña adicional (acceso simple basado en datos ya existentes)
+
+### Cómo se muestran y descargan los materiales
+- Lista con tarjetas limpias (nombre, tamaño formateado, fecha)
+- Botón de descarga por cada archivo
+- URL firmada de Supabase Storage (segura, expira en 60s)
+- Descarga en nueva pestaña para no interrumpir la experiencia
+
+### Qué quitaste del bloque de prueba de email
+- Sección completa con fondo azul claro (`#eff6ff`)
+- Título "🧪 Prueba de email"
+- Descripción explicativa
+- Formulario con input de email y botón "Enviar prueba"
+- Handler `handleEnviarEmailPrueba` con lógica de envío
+- Estados `emailPrueba` y `loadingEmailPrueba`
+- Import de `enviarCorreoReal` (ya no se usa en panel)
+- Mensajes de éxito/error específicos del envío de prueba
+
+### Cómo probarlo manualmente
+
+**1. Preparar el escenario:**
+- Crear un grupo en el panel del profesor
+- Añadir alumnos al grupo (si no hay, insertar manualmente en tabla `alumnos`)
+- Subir algunos materiales al grupo
+
+**2. Probar acceso del alumno:**
+- Ir a `/acceso-alumno`
+- Introducir código del grupo y email de un alumno existente
+- Verificar que redirige a `/mis-materiales`
+
+**3. Probar visualización:**
+- Verificar que aparece el nombre del alumno y del grupo
+- Verificar que se listan los materiales subidos
+- Verificar tamaño formateado y fecha
+
+**4. Probar descarga:**
+- Pulsar "Descargar" en un material
+- Verificar que se abre en nueva pestaña y se descarga
+- Verificar que la URL es firmada (tiene parámetros de token)
+
+**5. Probar errores:**
+- Código de grupo incorrecto → mensaje de error
+- Email que no existe en el grupo → mensaje de error
+- Grupo sin materiales → mensaje "Aún no hay materiales"
+
+### Qué queda pendiente para enlazarlo desde el correo real
+
+Para que el email de aviso lleve al alumno directamente a sus materiales, hay varias opciones:
+
+**Opción A (Magic Link simple):**
+- Incluir en el email: `https://enviaeso.com/acceso-alumno?codigo=ABC123&email=alumno@email.com`
+- La página `/acceso-alumno` leería los query params y autocompletaría el formulario
+- El alumno solo tendría que pulsar un botón para acceder
+
+**Opción B (Token de acceso temporal):**
+- Generar token JWT corto en Edge Function al enviar el email
+- Incluir en el email: `https://enviaeso.com/acceso-directo?token=xyz`
+- Validar token y redirigir directamente a `/mis-materiales`
+
+**Opción C (Magic Link completo con Supabase Auth):**
+- Crear usuarios de auth para alumnos (más complejo)
+- Usar sistema de magic links nativo de Supabase
+
+**Recomendación:** Opción A es la más simple y suficiente para MVP. Solo requiere:
+- Modificar `AccesoAlumno.jsx` para leer query params
+- Modificar el email de aviso para incluir el enlace con parámetros
+- El alumno llega con los datos pre-rellenos, un clic y entra
+
+---
+
 ## 2026-04-19 - Bloque: Autenticación base del profesor con Supabase Auth
 
 **Objetivo:** Preparar la base mínima de autenticación real del profesor con Supabase Auth, incluyendo login/registro, detección de sesión, protección de rutas y logout.  
