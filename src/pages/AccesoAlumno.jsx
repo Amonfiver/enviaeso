@@ -132,28 +132,28 @@ export default function AccesoAlumno() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '420px', marginTop: '64px' }}>
+    <div className="container" style={{ maxWidth: '420px', marginTop: '32px', padding: '0 16px' }}>
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <div
           style={{
-            width: '64px',
-            height: '64px',
-            margin: '0 auto 16px',
+            width: '56px',
+            height: '56px',
+            margin: '0 auto 12px',
             backgroundColor: '#10b981',
             borderRadius: '16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '32px',
+            fontSize: '28px',
           }}
         >
           🎓
         </div>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px', color: '#101828' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: '#101828' }}>
           Acceso para recibir
         </h1>
-        <p style={{ color: '#667085', fontSize: '16px', lineHeight: '1.5' }}>
+        <p style={{ color: '#667085', fontSize: '15px', lineHeight: '1.5', padding: '0 8px' }}>
           Introduce el código de tu grupo y tu email para ver tus materiales.
         </p>
       </div>
@@ -163,7 +163,7 @@ export default function AccesoAlumno() {
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
-          padding: '32px',
+          padding: '24px 20px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
           border: '1px solid #e4e7ec',
         }}
@@ -186,7 +186,7 @@ export default function AccesoAlumno() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label
               htmlFor="codigo"
               style={{
@@ -207,14 +207,20 @@ export default function AccesoAlumno() {
               onChange={(e) => setCodigoGrupo(e.target.value)}
               disabled={loading}
               required
-              style={{ textTransform: 'uppercase' }}
+              style={{ 
+                textTransform: 'uppercase',
+                width: '100%',
+                padding: '12px',
+                fontSize: '16px',
+                minHeight: '48px',
+              }}
             />
-            <p style={{ marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
-              Pídele el código a tu profesor si no lo tienes.
+            <p style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
+              Pídele el código si no lo tienes.
             </p>
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <label
               htmlFor="email"
               style={{
@@ -235,9 +241,15 @@ export default function AccesoAlumno() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               required
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '16px',
+                minHeight: '48px',
+              }}
             />
-            <p style={{ marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
-              Usa el mismo email con el que te registraste en el grupo.
+            <p style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
+              Usa el email con el que te registraste.
             </p>
           </div>
 
@@ -246,9 +258,10 @@ export default function AccesoAlumno() {
             disabled={loading}
             style={{
               width: '100%',
-              padding: '12px 20px',
+              padding: '14px',
               fontSize: '16px',
               fontWeight: '600',
+              minHeight: '52px',
             }}
           >
             {loading ? 'Accediendo...' : 'Ver mis materiales'}
@@ -284,10 +297,10 @@ export default function AccesoAlumno() {
         {/* Nota de privacidad */}
         <div
           style={{
-            marginTop: '24px',
-            padding: '16px',
+            marginTop: '20px',
+            padding: '14px',
             backgroundColor: '#f9fafb',
-            borderRadius: '8px',
+            borderRadius: '10px',
             border: '1px solid #e4e7ec',
           }}
         >
@@ -300,13 +313,13 @@ export default function AccesoAlumno() {
               lineHeight: '1.5',
             }}
           >
-            🔒 <strong>Privacidad:</strong> Tu correo no será compartido con el profesor ni con otros alumnos. Solo se usa para verificar que perteneces al grupo.
+            🔒 <strong>Privacidad:</strong> Tu correo no se comparte. Solo para verificar que perteneces al grupo.
           </p>
         </div>
       </div>
 
       {/* Volver al inicio */}
-      <div style={{ marginTop: '24px', textAlign: 'center' }}>
+      <div style={{ marginTop: '20px', textAlign: 'center' }}>
         <a
           href="/"
           style={{
@@ -316,6 +329,7 @@ export default function AccesoAlumno() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
+            padding: '8px',
           }}
         >
           <span>←</span> Volver al inicio

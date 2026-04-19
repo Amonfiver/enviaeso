@@ -108,7 +108,7 @@ export default function Home() {
       style={{
         minHeight: '100vh',
         backgroundColor: '#f8fafc',
-        padding: '24px 16px 48px',
+        padding: '16px 12px 32px',
       }}
     >
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -116,22 +116,22 @@ export default function Home() {
         <div
           style={{
             textAlign: 'center',
-            padding: '48px 16px 56px',
+            padding: '32px 12px 40px',
           }}
         >
           {/* Logo/Icono */}
           <div
             style={{
-              width: '80px',
-              height: '80px',
-              margin: '0 auto 24px',
+              width: '64px',
+              height: '64px',
+              margin: '0 auto 16px',
               background: 'linear-gradient(135deg, #1570ef 0%, #0ea5e9 100%)',
-              borderRadius: '20px',
+              borderRadius: '16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '40px',
-              boxShadow: '0 10px 25px rgba(21, 112, 239, 0.25)',
+              fontSize: '32px',
+              boxShadow: '0 8px 20px rgba(21, 112, 239, 0.25)',
             }}
           >
             📦
@@ -140,10 +140,10 @@ export default function Home() {
           {/* Marca */}
           <h1
             style={{
-              fontSize: 'clamp(36px, 6vw, 48px)',
+              fontSize: 'clamp(28px, 8vw, 48px)',
               fontWeight: '800',
               color: '#0f172a',
-              marginBottom: '16px',
+              marginBottom: '12px',
               letterSpacing: '-0.02em',
             }}
           >
@@ -153,16 +153,17 @@ export default function Home() {
           {/* Subtítulo de valor */}
           <p
             style={{
-              fontSize: 'clamp(18px, 3vw, 22px)',
+              fontSize: 'clamp(16px, 4vw, 22px)',
               color: '#475569',
               maxWidth: '560px',
               margin: '0 auto',
               lineHeight: '1.6',
               fontWeight: '400',
+              padding: '0 8px',
             }}
           >
             Comparte documentación, materiales y archivos de forma organizada.
-            <br />
+            <br style={{ display: 'none' }} className="hide-mobile" />
             Sin exponer datos personales. Sin complicaciones.
           </p>
         </div>
@@ -171,8 +172,8 @@ export default function Home() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: '24px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '16px',
             alignItems: 'stretch',
           }}
         >
@@ -180,8 +181,8 @@ export default function Home() {
           <div
             style={{
               backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              padding: '32px',
+              borderRadius: '16px',
+              padding: '24px 20px',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.02), 0 10px 15px rgba(0, 0, 0, 0.03)',
               border: '1px solid #e2e8f0',
               display: 'flex',
@@ -189,25 +190,25 @@ export default function Home() {
             }}
           >
             {/* Header del bloque */}
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div
                 style={{
-                  width: '56px',
-                  height: '56px',
-                  margin: '0 auto 16px',
+                  width: '48px',
+                  height: '48px',
+                  margin: '0 auto 12px',
                   backgroundColor: '#ecfdf5',
-                  borderRadius: '14px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '28px',
+                  fontSize: '24px',
                 }}
               >
                 📥
               </div>
               <h2
                 style={{
-                  fontSize: '24px',
+                  fontSize: '22px',
                   fontWeight: '700',
                   color: '#065f46',
                   marginBottom: '8px',
@@ -218,8 +219,8 @@ export default function Home() {
               <p
                 style={{
                   color: '#64748b',
-                  fontSize: '15px',
-                  lineHeight: '1.6',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
                   margin: 0,
                 }}
               >
@@ -232,13 +233,13 @@ export default function Home() {
               style={{
                 backgroundColor: '#f8fafc',
                 borderRadius: '12px',
-                padding: '20px',
-                marginBottom: '20px',
+                padding: '16px',
+                marginBottom: '16px',
               }}
             >
               <h3
                 style={{
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   color: '#334155',
                   marginBottom: '12px',
@@ -248,17 +249,17 @@ export default function Home() {
                 }}
               >
                 <span style={{ fontSize: '16px' }}>✏️</span>
-                Apuntarme por primera vez
+                Apuntarme
               </h3>
               <p
                 style={{
                   fontSize: '13px',
                   color: '#64748b',
-                  marginBottom: '16px',
+                  marginBottom: '12px',
                   lineHeight: '1.5',
                 }}
               >
-                Tengo un código y quiero recibir materiales de un grupo.
+                Tengo un código y quiero recibir materiales.
               </p>
 
               <form onSubmit={handleSubmit}>
@@ -365,15 +366,16 @@ export default function Home() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: '14px',
                     backgroundColor: '#10b981',
                     color: '#ffffff',
                     border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
                     fontWeight: '600',
                     cursor: loading ? 'not-allowed' : 'pointer',
                     opacity: loading ? 0.7 : 1,
+                    minHeight: '48px',
                   }}
                 >
                   {loading ? 'Apuntando...' : 'Apuntarme al grupo'}
@@ -416,14 +418,14 @@ export default function Home() {
               style={{
                 backgroundColor: '#f0f9ff',
                 borderRadius: '12px',
-                padding: '20px',
+                padding: '16px',
                 border: '1px solid #bae6fd',
                 marginTop: 'auto',
               }}
             >
               <h3
                 style={{
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   color: '#0369a1',
                   marginBottom: '8px',
@@ -439,7 +441,7 @@ export default function Home() {
                 style={{
                   fontSize: '13px',
                   color: '#0369a1',
-                  marginBottom: '16px',
+                  marginBottom: '12px',
                   lineHeight: '1.5',
                 }}
               >
@@ -450,18 +452,19 @@ export default function Home() {
                 onClick={() => navigate('/acceso-alumno')}
                 style={{
                   width: '100%',
-                  padding: '12px',
+                  padding: '14px',
                   backgroundColor: '#ffffff',
                   color: '#0284c7',
                   border: '1px solid #7dd3fc',
-                  borderRadius: '8px',
-                  fontSize: '14px',
+                  borderRadius: '10px',
+                  fontSize: '15px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
+                  minHeight: '48px',
                 }}
               >
                 <span>📂</span>
@@ -474,8 +477,8 @@ export default function Home() {
           <div
             style={{
               backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              padding: '32px',
+              borderRadius: '16px',
+              padding: '24px 20px',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.02), 0 10px 15px rgba(0, 0, 0, 0.03)',
               border: '1px solid #e2e8f0',
               display: 'flex',
@@ -483,25 +486,25 @@ export default function Home() {
             }}
           >
             {/* Header del bloque */}
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div
                 style={{
-                  width: '56px',
-                  height: '56px',
-                  margin: '0 auto 16px',
+                  width: '48px',
+                  height: '48px',
+                  margin: '0 auto 12px',
                   backgroundColor: '#eff6ff',
-                  borderRadius: '14px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '28px',
+                  fontSize: '24px',
                 }}
               >
                 📤
               </div>
               <h2
                 style={{
-                  fontSize: '24px',
+                  fontSize: '22px',
                   fontWeight: '700',
                   color: '#1e40af',
                   marginBottom: '8px',
@@ -512,8 +515,8 @@ export default function Home() {
               <p
                 style={{
                   color: '#64748b',
-                  fontSize: '15px',
-                  lineHeight: '1.6',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
                   margin: 0,
                 }}
               >
@@ -527,15 +530,15 @@ export default function Home() {
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
-                marginBottom: '24px',
+                gap: '10px',
+                marginBottom: '20px',
               }}
             >
               {[
-                { icon: '👥', text: 'Crea y gestiona grupos de receptores' },
-                { icon: '📦', text: 'Sube materiales y organiza envíos' },
-                { icon: '📧', text: 'Avisa automáticamente por email' },
-                { icon: '📊', text: 'Sigue quién ha recibido qué' },
+                { icon: '👥', text: 'Crea y gestiona grupos' },
+                { icon: '📦', text: 'Sube materiales y organiza' },
+                { icon: '📧', text: 'Avisa automáticamente' },
+                { icon: '📊', text: 'Sigue quién recibe qué' },
               ].map((item, index) => (
                 <div
                   key={index}
@@ -543,17 +546,18 @@ export default function Home() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
-                    padding: '12px 16px',
+                    padding: '12px 14px',
                     backgroundColor: '#f8fafc',
                     borderRadius: '10px',
                   }}
                 >
-                  <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                  <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
                   <span
                     style={{
                       fontSize: '14px',
                       color: '#475569',
                       fontWeight: '500',
+                      lineHeight: '1.4',
                     }}
                   >
                     {item.text}
@@ -580,10 +584,11 @@ export default function Home() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
+                minHeight: '52px',
               }}
             >
               <span>🚀</span>
-              Entrar al panel de gestión
+              Entrar al panel
             </button>
 
             <p
@@ -595,7 +600,7 @@ export default function Home() {
                 marginBottom: 0,
               }}
             >
-              ¿Primera vez? También puedes registrarte desde ahí
+              ¿Primera vez? Regístrate desde ahí
             </p>
           </div>
         </div>
@@ -604,14 +609,14 @@ export default function Home() {
         <div
           style={{
             textAlign: 'center',
-            marginTop: '48px',
-            paddingTop: '24px',
+            marginTop: '32px',
+            paddingTop: '20px',
             borderTop: '1px solid #e2e8f0',
           }}
         >
           <p
             style={{
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#94a3b8',
               margin: 0,
             }}

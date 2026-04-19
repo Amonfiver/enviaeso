@@ -121,12 +121,12 @@ export default function MisMateriales() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: '800px' }}>
+    <div className="container" style={{ maxWidth: '800px', padding: '16px 12px' }}>
       {/* Header */}
       <div
         style={{
-          marginBottom: '32px',
-          padding: '24px',
+          marginBottom: '24px',
+          padding: '20px 16px',
           backgroundColor: '#f0fdf4',
           borderRadius: '16px',
           border: '1px solid #86efac',
@@ -136,55 +136,57 @@ export default function MisMateriales() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '16px',
+            gap: '12px',
             marginBottom: '12px',
+            flexWrap: 'wrap',
           }}
         >
           <div
             style={{
-              width: '48px',
-              height: '48px',
+              width: '44px',
+              height: '44px',
               backgroundColor: '#10b981',
               borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '24px',
+              fontSize: '22px',
+              flexShrink: 0,
             }}
           >
             📚
           </div>
-          <div>
-            <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '700', color: '#101828' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#101828' }}>
               Mis materiales
             </h1>
-            <p style={{ margin: 0, color: '#667085', fontSize: '14px' }}>
+            <p style={{ margin: 0, color: '#667085', fontSize: '13px' }}>
               Grupo: <strong style={{ color: '#059669' }}>{grupo.nombre}</strong>
             </p>
           </div>
         </div>
-        <p style={{ margin: '0', color: '#344054', fontSize: '16px' }}>
-          Hola, <strong>{alumno.nombre}</strong>. Aquí tienes los materiales compartidos por {grupo.profesorNombre}.
+        <p style={{ margin: '0', color: '#344054', fontSize: '15px', lineHeight: '1.5' }}>
+          Hola, <strong>{alumno.nombre}</strong>. Aquí tienes los materiales compartidos.
         </p>
       </div>
 
       {/* Lista de materiales */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px' }}>
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
           <p style={{ color: '#667085' }}>Cargando materiales...</p>
         </div>
       ) : materiales.length === 0 ? (
         <div
           style={{
-            padding: '48px 24px',
+            padding: '40px 20px',
             backgroundColor: '#f9fafb',
             borderRadius: '16px',
             textAlign: 'center',
             border: '1px solid #e4e7ec',
           }}
         >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-          <p style={{ color: '#344054', fontSize: '18px', fontWeight: '500', margin: '0 0 8px 0' }}>
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>📭</div>
+          <p style={{ color: '#344054', fontSize: '16px', fontWeight: '500', margin: '0 0 8px 0' }}>
             Aún no hay materiales disponibles
           </p>
           <p style={{ color: '#667085', fontSize: '14px', margin: 0 }}>
@@ -192,22 +194,22 @@ export default function MisMateriales() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: '16px' }}>
+        <div style={{ display: 'grid', gap: '12px' }}>
           {materiales.map((material) => (
             <div
               key={material.id}
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '20px',
+                flexDirection: 'column',
+                gap: '12px',
+                padding: '16px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e4e7ec',
                 borderRadius: '12px',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
               }}
             >
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div
                   style={{
                     width: '40px',
@@ -223,16 +225,15 @@ export default function MisMateriales() {
                 >
                   📄
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p
                     style={{
                       margin: '0 0 4px 0',
                       fontWeight: '500',
                       color: '#344054',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontSize: '16px',
+                      fontSize: '15px',
+                      lineHeight: '1.4',
+                      wordBreak: 'break-word',
                     }}
                   >
                     {material.nombre_archivo}
@@ -240,15 +241,13 @@ export default function MisMateriales() {
                   <p
                     style={{
                       margin: 0,
-                      fontSize: '13px',
+                      fontSize: '12px',
                       color: '#6b7280',
                     }}
                   >
-                    {formatearTamaño(material.tamaño_bytes)} • Subido el{' '}
-                    {new Date(material.created_at).toLocaleDateString('es-ES', {
+                    {formatearTamaño(material.tamaño_bytes)} • {new Date(material.created_at).toLocaleDateString('es-ES', {
                       day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
+                      month: 'short',
                     })}
                   </p>
                 </div>
@@ -257,15 +256,14 @@ export default function MisMateriales() {
                 onClick={() => handleDescargar(material)}
                 disabled={descargando === material.id}
                 style={{
-                  marginLeft: '16px',
-                  padding: '10px 20px',
+                  width: '100%',
+                  padding: '12px',
                   fontSize: '14px',
-                  fontWeight: '500',
-                  minWidth: 'auto',
-                  whiteSpace: 'nowrap',
+                  fontWeight: '600',
+                  minHeight: '44px',
                 }}
               >
-                {descargando === material.id ? 'Abriendo...' : 'Descargar'}
+                {descargando === material.id ? 'Abriendo...' : '⬇️ Descargar'}
               </button>
             </div>
           ))}
@@ -275,15 +273,15 @@ export default function MisMateriales() {
       {/* Nota de ayuda */}
       <div
         style={{
-          marginTop: '24px',
-          padding: '16px',
+          marginTop: '16px',
+          padding: '14px',
           backgroundColor: '#fefce8',
-          borderRadius: '8px',
+          borderRadius: '10px',
           border: '1px solid #fde047',
         }}
       >
         <p style={{ margin: 0, fontSize: '13px', color: '#854d0e', lineHeight: '1.5' }}>
-          💡 <strong>Nota:</strong> Si el archivo se abre en el navegador en lugar de descargarse, puedes guardarlo desde esa vista usando Ctrl+S (o Cmd+S en Mac).
+          💡 <strong>Nota:</strong> Si el archivo se abre en el navegador, mantén pulsado y selecciona "Descargar".
         </p>
       </div>
 
@@ -291,7 +289,7 @@ export default function MisMateriales() {
       {mensaje && (
         <div
           style={{
-            marginTop: '24px',
+            marginTop: '16px',
             padding: '12px 16px',
             borderRadius: '8px',
             backgroundColor: tipoMensaje === 'error' ? '#fef2f2' : '#f0fdf4',
@@ -316,46 +314,29 @@ export default function MisMateriales() {
       {/* Footer con botón de salir */}
       <div
         style={{
-          marginTop: '32px',
-          paddingTop: '24px',
+          marginTop: '24px',
+          paddingTop: '20px',
           borderTop: '1px solid #e4e7ec',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
+          flexDirection: 'column',
           gap: '12px',
         }}
       >
-        <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
-          ¿No es tu grupo?{' '}
-          <button
-            onClick={() => navigate('/acceso-alumno')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#1570ef',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              padding: 0,
-              font: 'inherit',
-              fontWeight: '500',
-            }}
-          >
-            Acceder con otro código
-          </button>
-        </p>
         <button
           onClick={() => navigate('/acceso-alumno')}
           style={{
-            padding: '10px 20px',
-            fontSize: '14px',
-            minWidth: 'auto',
+            width: '100%',
+            padding: '14px',
+            fontSize: '15px',
+            fontWeight: '600',
+            minHeight: '48px',
             backgroundColor: '#f2f4f7',
             color: '#344054',
             border: '1px solid #d0d5dd',
+            borderRadius: '10px',
           }}
         >
-          ← Salir
+          ← Acceder con otro código
         </button>
       </div>
     </div>
