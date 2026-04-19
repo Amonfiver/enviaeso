@@ -857,5 +857,58 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 15  
+## 2026-04-19 - Servicio email.js: vía real a Edge Function
+
+**Objetivo:** Actualizar `src/services/email.js` para tener vía real de llamada a la Edge Function `send-test-email`, manteniendo mocks para desarrollo y dejando preparado el frontend para integración controlada.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Nueva función `enviarCorreoReal({ to, subject, html, text })`**:
+  - Usa `supabase.functions.invoke('send-test-email', ...)` para llamar a la Edge Function
+  - Valida parámetros antes de enviar
+  - Maneja errores de la Edge Function de forma clara
+  - Devuelve respuesta estandarizada: `{ success, messageId?, error? }`
+  - Logs en desarrollo para debugging
+- [x] **Mantenidas funciones mock existentes**: `enviarCorreoPrueba`, `enviarAvisoGrupo`, `enviarCorreoPlantilla`
+- [x] **Actualizada cabecera de documentación**:
+  - Nuevo propósito: servicio dual (mock + real)
+  - Alcance actual con función real
+  - Decisiones de seguridad (Edge Function como backend)
+  - Limitaciones temporales (sin auth, rate-limiting pendiente)
+  - Siguiente evolución prevista
+- [x] **Añadido import de supabase**: `import { supabase } from './supabase.js'`
+- [x] **Actualizado export EmailService**: Incluye nueva función `enviarCorreoReal`
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/email.js` | Modificado | Nueva función `enviarCorreoReal()` con llamada real a Edge Function, mocks mantenidos, documentación actualizada |
+
+### Notas para sesiones futuras
+- **Uso del servicio real**:
+  ```javascript
+  import { enviarCorreoReal } from './services/email.js';
+  
+  const resultado = await enviarCorreoReal({
+    to: 'alumno@ejemplo.com',
+    subject: 'Nuevo material disponible',
+    html: '<p>Hay nuevo material en tu grupo</p>'
+  });
+  
+  if (resultado.success) {
+    console.log('Email enviado:', resultado.messageId);
+  } else {
+    console.error('Error:', resultado.error);
+  }
+  ```
+- **Requisitos para que funcione**:
+  - Edge Function `send-test-email` debe estar deployada en Supabase
+  - Variables de entorno `RESEND_API_KEY` y `EMAIL_FROM` configuradas
+  - Cliente Supabase inicializado correctamente
+- **Seguridad**: El frontend nunca ve la API key de Resend, solo llama a la Edge Function
+- **Sin breaking changes**: Las funciones mock siguen funcionando igual, código existente no se rompe
+
+---
+
+**Total de sesiones registradas:** 16  
 **Última actualización:** 19 de abril de 2025
