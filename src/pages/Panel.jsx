@@ -737,9 +737,9 @@ Enviado desde EnviaEso • enviaeso.com`;
 
         console.log('[Trazabilidad Individual] Envío creado con ID:', envioCreado?.id);
 
-        // 2. Registrar en envios_alumnos - usando valores que cumplan la constraint
-        // NOTA: Intentando con valores en inglés ya que la constraint podría esperar eso
-        const estadoValor = resultado.success ? 'sent' : 'failed';
+        // 2. Registrar en envios_alumnos - usando valores en español según documentación
+        // FIX: La constraint 'envios_alumnos_estado_check' espera 'enviado' o 'error'
+        const estadoValor = resultado.success ? 'enviado' : 'error';
         console.log('[Trazabilidad Individual] Valor de estado a insertar:', estadoValor);
         
         const { error: destinatarioError } = await supabase
@@ -970,9 +970,9 @@ Enviado desde EnviaEso • enviaeso.com`;
       console.log('[Trazabilidad] Envío creado con ID:', envioCreado?.id);
 
       // 2. Registrar destinatarios en envios_alumnos
-      // NOTA: Intentando con valores en inglés ya que la constraint podría esperar eso
+      // FIX: La constraint 'envios_alumnos_estado_check' espera 'enviado' o 'error'
       const registrosAlumnos = resultadosPorAlumno.map((resultado) => {
-        const estadoValor = resultado.exito ? 'sent' : 'failed';
+        const estadoValor = resultado.exito ? 'enviado' : 'error';
         console.log('[Trazabilidad] Estado para alumno', resultado.alumnoId, ':', estadoValor);
         return {
           envio_id: envioCreado.id,

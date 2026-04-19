@@ -58,6 +58,100 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Fix: Cierre de trazabilidad de envíos - valores de estado correctos
+
+**Objetivo:** Cerrar el fix parcial de trazabilidad. Corregir valores de estado en `envios_alumnos` que seguían violando la constraint `envios_alumnos_estado_check`.  
+**Estado:** ✅ Completado
+
+### Causa raíz exacta y concreta
+El fix anterior (2026-04-19 - "Fix: Corrección de valores de estado en trazabilidad de envíos") fue parcial porque **cambió los valores en el código fuente pero mantuvo valores incorrectos según la constraint real de la BD**.
+
+La documentación `docs/ESTADO_ACTUAL.md` indica que el campo `estado` en `envios_alumnos` debe ser `"enviado"` o `"error"`, pero el código estaba usando `'sent'` y `'failed'` después del fix anterior.
+
+**Discrepancia identificada:**
+| Fuente | Valor éxito | Valor error |
+|--------|-------------|-------------|
+| `docs/ESTADO_ACTUAL.md` | `"enviado"` | `"error"` |
+| Código post-fix anterior | `'sent'` | `'failed'` |
+
+### Cambios realizados
+
+**1. Unificación de valores en español en `Panel.jsx`:**
+
+- **`handleEnviarAvisoAlumno`** (envío individual):
+  - Antes: `'sent'` / `'failed'`
+  - Después: `'enviado'` / `'error'`
+
+- **`handleAvisarATodos`** (envío grupal):
+  - Antes: `'sent'` / `'failed'`
+  - Después: `'enviado'` / `'error'`
+
+**2. Logs temporales actualizados:**
+- Los logs en consola ahora muestran: `[Trazabilidad] Valor de estado a insertar: 'enviado'` o `'error'`
+- Esto facilita verificar en desarrollo qué valores exactos se envían a la BD
+
+**3. Mantenido el reset de loading states:**
+- `setLoadingAvisoAlumno(false)` en bloque `finally` (individual)
+- `setLoadingAvisarATodos(false)` en bloque `finally` (grupal)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Valores de estado cambiados a español `'enviado'`/`'error'` en ambas funciones de envío, logs actualizados |
+
+### Payload final exacto que se inserta ahora en `envios_alumnos`
+
+```javascript
+// Éxito individual:
+{ envio_id: 'uuid', alumno_id: 'uuid', estado: 'enviado' }
+
+// Error individual:
+{ envio_id: 'uuid', alumno_id: 'uuid', estado: 'error' }
+
+// Éxito grupal (array):
+[
+  { envio_id: 'uuid', alumno_id: 'uuid1', estado: 'enviado' },
+  { envio_id: 'uuid', alumno_id: 'uuid2', estado: 'enviado' },
+  ...
+]
+
+// Error grupal (array):
+[
+  { envio_id: 'uuid', alumno_id: 'uuid1', estado: 'error' },
+  { envio_id: 'uuid', alumno_id: 'uuid2', estado: 'enviado' }, // mixto
+  ...
+]
+```
+
+### Qué valor usaba mal antes y en qué rama estaba
+- **Valor malo:** `'sent'` (en lugar de `'enviado'`) y `'failed'` (en lugar de `'error'`)
+- **Ubicación:** En `handleEnviarAvisoAlumno` (línea ~742) y `handleAvisarATodos` (línea ~975)
+- **Problema:** El fix anterior asumió que la constraint esperaba valores en inglés, pero la documentación y la constraint real esperan valores en español
+
+### Cómo probar manualmente individual y grupal
+
+**1. Envío individual:**
+- Ir a `/panel` → seleccionar grupo con alumnos → "Ver alumnos"
+- Seleccionar un alumno del dropdown → "Enviar aviso"
+- Verificar que aparece: `"Aviso enviado correctamente a {nombre}. ID: ... ✓ Registrado en BD."`
+- Verificar que el botón vuelve a decir "Enviar aviso" (no se queda en "Enviando...")
+
+**2. Envío grupal:**
+- En el mismo grupo, pulsar "Avisar a todos (N alumnos)"
+- Confirmar en el diálogo
+- Esperar a que termine
+- Verificar que aparece: `"Envío completado: N enviados de X total. ✓ Registrado en BD."`
+- Verificar que el botón vuelve a su estado normal
+
+**3. Verificación en Supabase Dashboard:**
+- Ir a la tabla `envios` → verificar que el envío se registró
+- Ir a la tabla `envios_alumnos` → verificar que los registros tienen `estado` = `'enviado'` o `'error'`
+
+### Confirmación de que ya no aparece el mensaje de error
+Tras este fix, el mensaje `"⚠️ Error al registrar en BD"` debe desaparecer cuando la constraint se cumple correctamente. Si persiste, revisar la consola del navegador para ver los logs de estado exactos que se intentan insertar.
+
+---
+
 ## 2026-04-19 - Consistencia de datos del profesor y CRUD básico de perfil
 
 **Objetivo:** Resolver la desincronización entre Supabase Auth y tabla `profesores`, e implementar CRUD básico de perfil del profesor.  
