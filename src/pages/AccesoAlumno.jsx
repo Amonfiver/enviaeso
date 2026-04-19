@@ -335,6 +335,35 @@ export default function AccesoAlumno() {
           <span>←</span> Volver al inicio
         </a>
       </div>
+
+      {/* Footer soporte */}
+      <div
+        style={{
+          marginTop: '24px',
+          paddingTop: '16px',
+          borderTop: '1px solid #e2e8f0',
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            fontSize: '12px',
+            color: '#94a3b8',
+            margin: 0,
+          }}
+        >
+          ¿Necesitas ayuda? Soporte:{' '}
+          <a
+            href="mailto:amonfiver@gmail.com"
+            style={{
+              color: '#64748b',
+              textDecoration: 'underline',
+            }}
+          >
+            amonfiver@gmail.com
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@
  * - Usa Supabase Auth (incluido en el cliente existente)
  * - El email del profesor se usa como identificador único
  * - La tabla `profesores` se sincroniza con el user de Supabase Auth
+ * - emailRedirectTo en signUp usa VITE_APP_URL para producción
  *
  * Limitaciones:
  * - Aún sin recuperación de contraseña
@@ -31,9 +32,14 @@ import { supabase } from './supabase.js';
  */
 export const registrarProfesor = async (nombre, email, password) => {
   // 1. Intentar crear el usuario en Supabase Auth
+  // emailRedirectTo: asegura que el email de confirmación redirija al dominio correcto
+  const redirectUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}/login`;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: redirectUrl,
+    },
   });
 
   if (error) {

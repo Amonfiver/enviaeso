@@ -58,6 +58,151 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-20 - Footer con soporte en páginas públicas
+
+**Objetivo:** Añadir línea de soporte con email en el footer de todas las páginas públicas del flujo.
+
+**Estado:** ✅ Completado
+
+### Cambio realizado
+
+Añadido en todas las páginas públicas:
+
+```
+¿Necesitas ayuda? Soporte: amonfiver@gmail.com
+```
+
+**Páginas actualizadas:**
+
+| Página | Ubicación del footer |
+|--------|---------------------|
+| `Home.jsx` | Debajo de "EnviaEso · Compartir sin complicaciones" |
+| `AccesoAlumno.jsx` | Al final, después de "Volver al inicio" |
+| `MisMateriales.jsx` | Dentro del footer, debajo del botón "Acceder con otro código" |
+| `LoginProfesor.jsx` | Al final, después de "Volver al inicio" |
+
+### Estilo aplicado
+
+- Fuente: 12px
+- Color: `#94a3b8` (gris claro, discreto)
+- Email: `#64748b` con subrayado
+- Espaciado: 8px-16px de margen superior
+- Borde superior sutil (`#e2e8f0`) donde aplica
+- Centrado en todas las páginas
+- Email como enlace `mailto:amonfiver@gmail.com`
+
+### Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Home.jsx` | Modificado | Footer con línea de soporte |
+| `src/pages/AccesoAlumno.jsx` | Modificado | Footer de soporte añadido |
+| `src/pages/MisMateriales.jsx` | Modificado | Línea de soporte en footer |
+| `src/pages/LoginProfesor.jsx` | Modificado | Footer de soporte añadido |
+| `docs/BITACORA.md` | Modificado | Esta entrada |
+
+---
+
+## 2026-04-20 - Fix: emailRedirectTo en registro de profesor
+
+**Objetivo:** Corregir que el email de confirmación de Supabase redirigía a localhost en producción.
+
+**Estado:** ✅ Completado
+
+### Cambio realizado
+
+**`src/services/auth.js` - función `registrarProfesor`:**
+- Añadido `options.emailRedirectTo` en `supabase.auth.signUp()`
+- URL calculada como: `${import.meta.env.VITE_APP_URL || window.location.origin}/login`
+- Fallback a `window.location.origin` para desarrollo local
+- Cabecera del archivo actualizada documentando la decisión
+
+### Código del cambio
+
+```javascript
+const redirectUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}/login`;
+const { data, error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: redirectUrl,
+  },
+});
+```
+
+### Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/auth.js` | Modificado | Añadido emailRedirectTo en signUp para redirección correcta en producción |
+| `docs/ESTADO_ACTUAL.md` | Modificado | Actualizada sección de variables de entorno con nota crítica sobre VITE_APP_URL |
+| `docs/BITACORA.md` | Modificado | Esta entrada |
+
+### Nota para producción
+
+**Requisito:** Definir `VITE_APP_URL=https://tudominio.com` en variables de entorno del build. Sin esto, el email de confirmación seguirá usando el origin por defecto (que puede ser localhost si no se configura).
+
+---
+
+## 2026-04-19 - Persistencia de consentimientos legales y dominio real
+
+**Objetivo:** Conectar los campos legales del formulario público a la base de datos, asegurar que los consentimientos se guarden correctamente y preparar la app para funcionar con dominio real mediante variable de entorno.
+
+**Estado:** ✅ Completado
+
+### Cambios realizados
+
+**1. `src/pages/Home.jsx` - Persistencia de consentimientos:**
+- Formulario de alta ahora guarda en BD:
+  - `acepta_privacidad`: BOOLEAN (obligatorio)
+  - `acepta_comunicaciones`: BOOLEAN (opcional)
+  - `fecha_acepta_privacidad`: TIMESTAMP (si aceptó)
+  - `fecha_acepta_comunicaciones`: TIMESTAMP (si aceptó)
+  - `version_legal`: "v1" (versión actual de términos)
+- Mantenida validación: sin aceptar privacidad no permite continuar
+- Flujo de error existente preservado (duplicados, errores de BD)
+- Cabecera del archivo actualizada con documentación del cambio
+
+**2. `src/pages/Panel.jsx` - Documentación de VITE_APP_URL:**
+- Cabecera actualizada para documentar uso de `VITE_APP_URL` en enlaces de emails
+- Función `generarEnlaceAcceso()` ya usaba correctamente:
+  ```javascript
+  const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+  ```
+
+**3. `docs/ESTADO_ACTUAL.md` - Documentación actualizada:**
+- Estructura de tabla `alumnos` actualizada con nuevas columnas legales
+- Sección "Variables de Entorno Importantes" añadida con `VITE_APP_URL`
+- Problema de "consentimiento solo en frontend" marcado como resuelto
+- Fecha de última actualización revisada
+
+### Datos que se guardan ahora en alumnos
+
+| Campo | Valor | Condición |
+|-------|-------|-----------|
+| `acepta_privacidad` | `true`/`false` | Siempre (NOT NULL) |
+| `acepta_comunicaciones` | `true`/`false` | Siempre (NOT NULL) |
+| `fecha_acepta_privacidad` | ISO string | Solo si `acepta_privacidad === true` |
+| `fecha_acepta_comunicaciones` | ISO string | Solo si `acepta_comunicaciones === true` |
+| `version_legal` | `"v1"` | Siempre |
+
+### Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Home.jsx` | Modificado | Añadida persistencia de consentimientos legales en insert de alumnos |
+| `src/pages/Panel.jsx` | Modificado | Cabecera documenta uso de VITE_APP_URL |
+| `docs/ESTADO_ACTUAL.md` | Modificado | Estructura de tabla alumnos + variables de entorno |
+| `docs/BITACORA.md` | Modificado | Esta entrada |
+
+### Notas para sesiones futuras
+
+- **VITE_APP_URL:** En producción definir como `https://tudominio.com` (sin slash final). Si no existe, usa `window.location.origin`.
+- **Versión legal:** La versión actual es "v1". Si se actualizan términos, cambiar en `Home.jsx` y considerar migración de datos existentes.
+- **Flujo probado:** El alta sigue funcionando igual para el usuario, ahora solo persiste más datos en BD.
+
+---
+
 ## 2026-04-19 - Reorganización UX: Home unificada Recibir/Enviar
 
 **Objetivo:** Transformar la entrada pública en una landing moderna y unificada, cambiando el lenguaje de "profesor/alumno" a "Enviar/Recibir" sin romper la arquitectura interna.

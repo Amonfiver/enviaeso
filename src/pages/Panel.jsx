@@ -21,6 +21,7 @@
  * - Permite enviar avisos reales a alumnos seleccionados por nombre (email oculto)
  * - Permite enviar avisos a todos los alumnos de un grupo ("Avisar a todos")
  * - Trazabilidad completa de envíos en BD
+ * - Enlaces de acceso en emails usan VITE_APP_URL (con fallback a window.location.origin)
  *
  * Limitaciones:
  * - No se permite editar el código de grupo

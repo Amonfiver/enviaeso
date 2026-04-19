@@ -350,6 +350,27 @@ export default function MisMateriales() {
         >
           ← Acceder con otro código
         </button>
+
+        {/* Soporte */}
+        <p
+          style={{
+            fontSize: '12px',
+            color: '#94a3b8',
+            margin: '8px 0 0 0',
+            textAlign: 'center',
+          }}
+        >
+          ¿Necesitas ayuda? Soporte:{' '}
+          <a
+            href="mailto:amonfiver@gmail.com"
+            style={{
+              color: '#64748b',
+              textDecoration: 'underline',
+            }}
+          >
+            amonfiver@gmail.com
+          </a>
+        </p>
       </div>
     </div>
   );

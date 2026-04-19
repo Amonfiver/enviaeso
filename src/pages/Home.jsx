@@ -7,7 +7,7 @@
  * Alcance:
  * - Hero con marca y valor del producto
  * - Dos bloques principales: Recibir (izquierda) y Enviar (derecha)
- * - Formulario de alta integrado en el bloque Recibir
+ * - Formulario de alta integrado en el bloque Recibir con persistencia de consentimientos legales
  * - CTAs claros sin duplicidad de formularios
  *
  * Decisiones:
@@ -15,6 +15,7 @@
  * - Estructura visual en cards para claridad y jerarquía
  * - El acceso a materiales se mantiene en /acceso-alumno (enlace desde Recibir)
  * - Responsive: apilado en móvil, lado a lado en desktop
+ * - Consentimientos legales (acepta_privacidad, acepta_comunicaciones, version_legal) se persisten en BD
  *
  * Limitaciones:
  * - No se renombran tablas ni lógica interna (profesores/alumnos/grupos)
@@ -82,19 +83,17 @@ export default function Home() {
         return;
       }
 
-      // 2. Insertar alumno en el grupo
-      // NOTA: Las columnas acepta_privacidad y acepta_comunicaciones
-      // se deben añadir a la tabla 'alumnos' en Supabase para persistir
-      // estos valores. Mientras tanto, solo validamos en frontend.
+      // 2. Insertar alumno en el grupo con consentimientos legales
       const datosAlumno = {
         grupo_id: grupo.id,
         nombre: nombreNormalizado,
         email: emailNormalizado,
+        acepta_privacidad: aceptaPrivacidad,
+        acepta_comunicaciones: aceptaComunicaciones,
+        fecha_acepta_privacidad: aceptaPrivacidad ? new Date().toISOString() : null,
+        fecha_acepta_comunicaciones: aceptaComunicaciones ? new Date().toISOString() : null,
+        version_legal: 'v1',
       };
-
-      // Si las columnas existen en BD, descomentar:
-      // datosAlumno.acepta_privacidad = aceptaPrivacidad;
-      // datosAlumno.acepta_comunicaciones = aceptaComunicaciones;
 
       const { error: errorAlumno } = await supabase.from('alumnos').insert([
         datosAlumno,
@@ -718,6 +717,24 @@ export default function Home() {
             }}
           >
             EnviaEso · Compartir sin complicaciones
+          </p>
+          <p
+            style={{
+              fontSize: '12px',
+              color: '#94a3b8',
+              margin: '8px 0 0 0',
+            }}
+          >
+            ¿Necesitas ayuda? Soporte:{' '}
+            <a
+              href="mailto:amonfiver@gmail.com"
+              style={{
+                color: '#64748b',
+                textDecoration: 'underline',
+              }}
+            >
+              amonfiver@gmail.com
+            </a>
           </p>
         </div>
       </div>

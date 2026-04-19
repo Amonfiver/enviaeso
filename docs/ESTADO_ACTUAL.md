@@ -93,9 +93,14 @@ Plataforma para compartir documentación, materiales y archivos de forma organiz
 | grupo_id | UUID (FK) | |
 | nombre | VARCHAR | Visible en UI |
 | email | VARCHAR | **Oculto en UI**, usado para envíos |
+| acepta_privacidad | BOOLEAN NOT NULL DEFAULT false | Consentimiento obligatorio |
+| acepta_comunicaciones | BOOLEAN NOT NULL DEFAULT false | Consentimiento opcional |
+| fecha_acepta_privacidad | TIMESTAMP WITH TIME ZONE | Cuando aceptó privacidad |
+| fecha_acepta_comunicaciones | TIMESTAMP WITH TIME ZONE | Cuando aceptó comunicaciones |
+| version_legal | VARCHAR(20) | Versión de los términos (actual: "v1") |
 | created_at | TIMESTAMP | |
 
-*Nota: En UX se usa "Recibir", en BD se mantiene `alumnos`.*
+*Nota: En UX se usa "Recibir", en BD se mantiene `alumnos`. Los consentimientos legales se persisten desde el formulario público.*
 
 ### `materiales`
 | Campo | Tipo | Notas |
@@ -167,9 +172,20 @@ Plataforma para compartir documentación, materiales y archivos de forma organiz
 | 🟡 Media | RLS permisivas (deuda técnica) | Seguridad superficial |
 | 🟡 Media | Nombres de tablas no alineados con UX (profesores/alumnos vs enviar/recibir) | Deuda técnica futura |
 | 🟢 Baja | Sin rate-limiting en envío de emails | Riesgo de spam si se expone |
-| 🟢 Baja | Consentimiento legal solo validado en frontend | Persistencia pendiente en BD |
 
-*Nota: Autenticación real implementada. Home.jsx reorganizado con enfoque Recibir/Enviar.*
+*Nota: Autenticación real implementada. Home.jsx reorganizado con enfoque Recibir/Enviar. Consentimientos legales ya persisten en BD.*
+
+### Variables de Entorno Importantes
+
+| Variable | Propósito | Valor en Producción |
+|----------|-----------|---------------------|
+| `VITE_APP_URL` | URL base para enlaces en emails y redirecciones auth | `https://tudominio.com` (sin trailing slash) |
+| `VITE_SUPABASE_URL` | Endpoint de Supabase | Desde dashboard |
+| `VITE_SUPABASE_ANON_KEY` | Key anónima de Supabase | Desde dashboard |
+
+*Notas:*
+- Si `VITE_APP_URL` no está definida, el sistema usa `window.location.origin` como fallback (útil en desarrollo)
+- **Crítico para auth:** El email de confirmación de registro redirige a `${VITE_APP_URL}/login`. Sin esta variable en producción, el email redirigirá a localhost.
 
 ### FIXES Recientes (Producción Netlify)
 1. ✅ **Rutas SPA en Netlify:** Añadido `public/_redirects` para resolver rutas internas correctamente
@@ -212,5 +228,5 @@ Plataforma para compartir documentación, materiales y archivos de forma organiz
 
 ---
 
-**Última actualización:** 19 de abril de 2026  
-**Versión del sistema:** MVP funcional, home unificada Recibir/Enviar
+**Última actualización:** 19 de abril de 2026 (bloque: consentimientos legales + VITE_APP_URL)  
+**Versión del sistema:** MVP funcional, home unificada Recibir/Enviar, consentimientos persistidos en BD
