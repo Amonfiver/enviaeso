@@ -16,12 +16,14 @@
  * - Permite borrar grupos con confirmación
  * - Permite ver alumnos de cada grupo sin exponer emails (solo nombre)
  * - Muestra contador de alumnos visible en cada tarjeta de grupo
+ * - Incluye prueba controlada de envío de emails individuales
  *
  * Limitaciones:
  * - Aún no hay login oficial
  * - No se permite editar el código de grupo
  * - Vista de alumnos es de solo lectura
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
+ * - Envío de emails de prueba sin autenticación adicional
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -33,6 +35,7 @@ import {
   listarMaterialesPorGrupo,
   formatearTamaño,
 } from '../services/storage';
+import { enviarCorreoReal } from '../services/email';
 
 // TODO: Reemplazar por el profesor autenticado cuando implementemos login real
 const PROFESOR_ID_TEMPORAL = '8f3de77b-11e4-4fd6-a45c-068368e540a9';
@@ -69,6 +72,10 @@ export default function Panel() {
   
   // Estado separado para controlar visibilidad de la sección de materiales
   const [grupoMaterialesAbierto, setGrupoMaterialesAbierto] = useState(null);
+
+  // Estado para prueba de envío de email
+  const [emailPrueba, setEmailPrueba] = useState('');
+  const [loadingEmailPrueba, setLoadingEmailPrueba] = useState(false);
 
   const cargarGrupos = async () => {
     setLoadingGrupos(true);
@@ -524,6 +531,44 @@ export default function Panel() {
   // Referencias para inputs file (una por grupo)
   const fileInputRefs = useRef({});
 
+  /**
+   * Envía un email de prueba a la dirección indicada.
+   * Usa la Edge Function send-test-email mediante enviarCorreoReal.
+   */
+  const handleEnviarEmailPrueba = async (e) => {
+    e.preventDefault();
+    
+    const email = emailPrueba.trim();
+    
+    if (!email) {
+      setMensaje('Introduce un email para enviar la prueba.');
+      setTipoMensaje('error');
+      return;
+    }
+
+    setLoadingEmailPrueba(true);
+    setMensaje('');
+    setTipoMensaje('');
+
+    const resultado = await enviarCorreoReal({
+      to: email,
+      subject: 'Prueba de EnviaEso',
+      html: '<p>¡Hola! Este es un email de prueba enviado desde <strong>EnviaEso</strong>.</p><p>Si lo recibes, significa que la configuración de email está funcionando correctamente.</p><p>---<br>Enviado desde EnviaEso</p>',
+      text: '¡Hola! Este es un email de prueba enviado desde EnviaEso. Si lo recibes, significa que la configuración de email está funcionando correctamente. --- Enviado desde EnviaEso'
+    });
+
+    if (resultado.success) {
+      setMensaje(`Email de prueba enviado correctamente a ${email}. ID: ${resultado.messageId}`);
+      setTipoMensaje('success');
+      setEmailPrueba('');
+    } else {
+      setMensaje(`Error al enviar email: ${resultado.error}`);
+      setTipoMensaje('error');
+    }
+
+    setLoadingEmailPrueba(false);
+  };
+
   return (
     <div className="container">
       <h1>Panel del profesor</h1>
@@ -570,6 +615,55 @@ export default function Panel() {
           {mensaje}
         </p>
       )}
+
+      {/* Sección de prueba de email */}
+      <section
+        style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#eff6ff',
+          borderRadius: '12px',
+          border: '1px solid #bfdbfe',
+        }}
+      >
+        <h2 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e40af' }}>
+          🧪 Prueba de email
+        </h2>
+        <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#3b82f6' }}>
+          Envía un email de prueba para verificar que la configuración funciona.
+        </p>
+        <form onSubmit={handleEnviarEmailPrueba} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            placeholder="tu-email@ejemplo.com"
+            value={emailPrueba}
+            onChange={(e) => setEmailPrueba(e.target.value)}
+            disabled={loadingEmailPrueba}
+            style={{
+              flex: '1',
+              minWidth: '200px',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe',
+              font: 'inherit',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loadingEmailPrueba}
+            style={{
+              padding: '10px 16px',
+              fontSize: '14px',
+              minWidth: 'auto',
+              backgroundColor: '#3b82f6',
+              color: '#ffffff',
+              border: '1px solid #2563eb',
+            }}
+          >
+            {loadingEmailPrueba ? 'Enviando...' : 'Enviar prueba'}
+          </button>
+        </form>
+      </section>
 
       <section style={{ marginTop: '32px' }}>
         <div

@@ -910,5 +910,49 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 16  
+## 2026-04-19 - Botón de prueba de email en Panel.jsx
+
+**Objetivo:** Añadir en el panel del profesor una UI de prueba controlada para enviar un email de prueba manual a una dirección indicada por el usuario, usando `enviarCorreoReal()`.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Importado `enviarCorreoReal`** desde `../services/email` en Panel.jsx
+- [x] **Actualizada cabecera del archivo**: Añadida mención a "prueba controlada de envío de emails individuales" en propósito y limitaciones
+- [x] **Añadidos estados para email de prueba**:
+  - `emailPrueba`: valor del input de email
+  - `loadingEmailPrueba`: estado de carga durante envío
+- [x] **Creada función `handleEnviarEmailPrueba`**:
+  - Valida que haya un email introducido
+  - Llama a `enviarCorreoReal()` con asunto "Prueba de EnviaEso" y contenido HTML/texto
+  - Usa sistema de mensajes existente (`setMensaje`, `setTipoMensaje`) para feedback
+  - Maneja éxito y error de forma clara
+  - Limpia el input tras envío exitoso
+- [x] **Añadida sección de prueba de email en UI**:
+  - Sección destacada con fondo azul claro (`#eff6ff`) y borde azul
+  - Título "🧪 Prueba de email"
+  - Input tipo email con placeholder
+  - Botón "Enviar prueba" (azul, deshabilitado durante carga)
+  - Diseño responsive (flex con wrap)
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Panel.jsx` | Modificado | Sección de prueba de email añadida con input, botón, handler y estados |
+
+### Notas para sesiones futuras
+- **Cómo probar el botón desde la UI**:
+  1. Ir al panel del profesor (`/panel`)
+  2. En la sección "🧪 Prueba de email", introducir un email válido
+  3. Pulsar "Enviar prueba"
+  4. Verificar mensaje de éxito y revisar bandeja de entrada
+- **Requisitos para que funcione**:
+  - Edge Function `send-test-email` deployada
+  - Secrets `RESEND_API_KEY` y `EMAIL_FROM` configurados en Supabase
+  - Cliente Supabase con sesión activa (anon key)
+- **Contenido del email de prueba**: Asunto "Prueba de EnviaEso" con mensaje HTML y texto plano explicativo
+- **Sin breaking changes**: Todos los flujos existentes del panel funcionan igual
+
+---
+
+**Total de sesiones registradas:** 17  
 **Última actualización:** 19 de abril de 2025
