@@ -30,7 +30,7 @@ NOTA SObre DOCUMENTACIÓN
 
 ## Qué es EnviaEso
 
-Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avisos con materiales. Sin autenticación real aún (profesor usa ID temporal). MVP en evolución.
+Plataforma para compartir documentación, materiales y archivos de forma organizada. Dos perfiles principales: quienes **envían** (gestionan grupos y materiales) y quienes **reciben** (se apuntan a grupos y acceden a sus documentos). MVP en evolución.
 
 ---
 
@@ -48,42 +48,45 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 
 ## Flujos que Ya Funcionan
 
-### Flujo Alumno
-1. Accede con código de grupo en `/` (Home.jsx)
-2. Se registra con nombre y email
-3. Queda asociado al grupo
-4. Recibe emails cuando el profesor avisa (vía Resend)
+### Flujo Recibir (antes "Alumno")
+1. Landing en `/` con dos caminos: Recibir / Enviar
+2. Apuntarse a un grupo con código, nombre y email
+3. Acceder a materiales en `/acceso-alumno` con código + email
+4. Recibe emails cuando el emisor avisa (vía Resend)
 
-### Flujo Profesor (Panel temporal)
-1. Panel en `/panel` sin login real (usa `PROFESOR_ID_TEMPORAL`)
-2. Crear/editar/borrar grupos
-3. Ver alumnos por grupo (solo nombres, no emails)
-4. Subir materiales a grupos (Supabase Storage)
-5. Enviar avisos individuales o grupales
-6. **Trazabilidad mínima**: registra envíos en tabla `envios` + `envios_alumnos`
+### Flujo Enviar (antes "Profesor")
+1. Acceso en `/login` con autenticación Supabase Auth
+2. Panel en `/panel` para gestión completa
+3. Crear/editar/borrar grupos
+4. Ver receptores por grupo (solo nombres, no emails)
+5. Subir materiales a grupos (Supabase Storage)
+6. Enviar avisos individuales o grupales
+7. **Trazabilidad mínima**: registra envíos en tabla `envios` + `envios_alumnos`
 
 ---
 
 ## Estructura Real de Tablas Importantes
 
-### `profesores`
+### `profesores` (emisores)
 | Campo | Tipo | Notas |
 |-------|------|-------|
 | id | UUID (PK) | Generado por Supabase Auth |
 | email | VARCHAR | Para login |
 | created_at | TIMESTAMP | Automático |
 
+*Nota: En UX se usa "Enviar", en BD se mantiene `profesores`.*
+
 ### `grupos`
 | Campo | Tipo | Notas |
 |-------|------|-------|
 | id | UUID (PK) | |
-| profesor_id | UUID (FK) | Temporalmente fijo en código |
+| profesor_id | UUID (FK) | ID del emisor |
 | nombre | VARCHAR | Nombre del grupo |
-| codigo | VARCHAR | Código único para alumnos |
-| nota_interna | TEXT | Notas del profesor |
+| codigo | VARCHAR | Código único para receptores |
+| nota_interna | TEXT | Notas internas |
 | created_at | TIMESTAMP | |
 
-### `alumnos`
+### `alumnos` (receptores)
 | Campo | Tipo | Notas |
 |-------|------|-------|
 | id | UUID (PK) | |
@@ -91,6 +94,8 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 | nombre | VARCHAR | Visible en UI |
 | email | VARCHAR | **Oculto en UI**, usado para envíos |
 | created_at | TIMESTAMP | |
+
+*Nota: En UX se usa "Recibir", en BD se mantiene `alumnos`.*
 
 ### `materiales`
 | Campo | Tipo | Notas |
@@ -126,13 +131,14 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 
 | ID | Decisión | Estado |
 |----|----------|--------|
-| P006 | Panel de profesor incluido en MVP | ✅ Activa |
-| P007 | Profesor gestiona múltiples grupos | ✅ Activa |
-| P008 | Alumnos se asocian mediante códigos | ✅ Activa |
+| P006 | Panel de gestión incluido en MVP | ✅ Activa |
+| P007 | Emisor gestiona múltiples grupos | ✅ Activa |
+| P008 | Receptores se asocian mediante códigos | ✅ Activa |
 | P009 | Materiales se sirven desde plataforma | ✅ Activa |
 | P010 | Email es canal de aviso, no transporte | ✅ Activa |
 | P012 | Trazabilidad completa (mínima ahora) | ✅ Activa |
 | P014 | Código de grupo solo para alta inicial | ✅ Activa |
+| P015 | UX generalista: Recibir/Enviar | ✅ Activa |
 
 ---
 
@@ -143,7 +149,7 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 - Aviso individual y grupal desde el panel
 - Pausa de 300ms entre envíos para no saturar
 - Registro en `envios` con descripción y fecha
-- Registro en `envios_alumnos` con estado por alumno
+- Registro en `envios_alumnos` con estado por receptor
 - Visualización del último envío en la UI del panel
 
 ### Limitaciones actuales
@@ -158,27 +164,27 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 
 | Prioridad | Problema | Impacto |
 |-----------|----------|---------|
-| 🔴 Alta | **Sin autenticación real del profesor** | Cualquiera puede acceder al panel con el ID temporal |
 | 🟡 Media | RLS permisivas (deuda técnica) | Seguridad superficial |
-| 🟡 Media | Home.jsx desalineado con arquitectura actual | Confusión en desarrollo |
+| 🟡 Media | Nombres de tablas no alineados con UX (profesores/alumnos vs enviar/recibir) | Deuda técnica futura |
 | 🟢 Baja | Sin rate-limiting en envío de emails | Riesgo de spam si se expone |
+
+*Nota: Autenticación real implementada. Home.jsx reorganizado con enfoque Recibir/Enviar.*
 
 ---
 
 ## Próximos Pasos Recomendados
 
-### Inmediato (este bloque)
-1. ✅ **Autenticación real del profesor** con Supabase Auth
-   - Registro/login
-   - Detección de sesión
-   - Base para logout
-   - Empezar a restringir acceso al panel
+### Inmediato (siguiente bloque)
+1. Recuperación de contraseña
+2. Mejorar UX de carga y estados de error
+3. Implementar cierre de sesión explícito
 
 ### Siguiente
-2. Proteger rutas del panel con autenticación
-3. Actualizar `PROFESOR_ID_TEMPORAL` para usar el ID real del profesor logueado
-4. Rediseñar Home.jsx como portal dual (alumno/profesor)
-5. Implementar recuperación de contraseña
+4. Historial completo de envíos en el panel
+5. Tracking de aperturas de emails
+6. Renombrar tablas (opcional): `profesores`→`emisores`, `alumnos`→`receptores`
+
+*Nota: Home.jsx ya está rediseñado como portal dual (Recibir/Enviar). Autenticación implementada.*
 
 ---
 
@@ -186,8 +192,10 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 
 | Archivo | Propósito |
 |---------|-----------|
-| `src/pages/Panel.jsx` | Panel del profesor (gestión completa) |
-| `src/pages/Home.jsx` | Portal del alumno (acceso por código) |
+| `src/pages/Panel.jsx` | Panel de gestión (emisores) |
+| `src/pages/Home.jsx` | Landing unificada (Recibir/Enviar) |
+| `src/pages/AccesoAlumno.jsx` | Acceso para receptores |
+| `src/pages/LoginProfesor.jsx` | Login/registro para emisores |
 | `src/services/supabase.js` | Cliente Supabase configurado |
 | `src/services/email.js` | Envío de emails vía Edge Function |
 | `src/services/storage.js` | Gestión de materiales en Storage |
@@ -198,4 +206,4 @@ Plataforma mínima para que profesores gestionen grupos de alumnos y envíen avi
 ---
 
 **Última actualización:** 19 de abril de 2026  
-**Versión del sistema:** MVP funcional, pendiente auth real
+**Versión del sistema:** MVP funcional, home unificada Recibir/Enviar

@@ -1,7 +1,7 @@
 /**
  * Propósito:
- * Página de login y registro para profesores.
- * Punto de entrada al panel de administración.
+ * Página de login y registro para quienes envían materiales.
+ * Punto de entrada al panel de gestión.
  *
  * Alcance:
  * - Formulario de login con email/contraseña
@@ -10,6 +10,7 @@
  * - Redirección al panel si ya está logueado
  *
  * Decisiones:
+ * - Naming generalista: "Enviar" en lugar de "Profesor"
  * - Login y registro en la misma pantalla (toggle simple)
  * - Sin confirmación de email obligatoria (MVP)
  * - Redirección automática al panel tras login exitoso
@@ -145,12 +146,12 @@ export default function LoginProfesor() {
           📚
         </div>
         <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px', color: '#101828' }}>
-          {modoRegistro ? 'Crear cuenta' : 'Acceso para profesores'}
+          {modoRegistro ? 'Crear cuenta' : 'Acceso para enviar'}
         </h1>
         <p style={{ color: '#667085', fontSize: '16px', lineHeight: '1.5' }}>
           {modoRegistro
-            ? 'Regístrate para gestionar tus grupos y enviar materiales'
-            : 'Inicia sesión para acceder a tu panel de profesor'}
+            ? 'Regístrate para gestionar grupos y compartir materiales'
+            : 'Inicia sesión para acceder a tu panel de gestión'}
         </p>
       </div>
 

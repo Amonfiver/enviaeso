@@ -58,6 +58,80 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Reorganización UX: Home unificada Recibir/Enviar
+
+**Objetivo:** Transformar la entrada pública en una landing moderna y unificada, cambiando el lenguaje de "profesor/alumno" a "Enviar/Recibir" sin romper la arquitectura interna.
+
+**Estado:** ✅ Completado
+
+### Cambios realizados
+
+**1. `src/pages/Home.jsx` - Landing unificada:**
+- Hero moderno con marca EnviaEso y valor del producto
+- Dos bloques principales lado a lado (responsive: apilados en móvil):
+  - **Recibir (izquierda):** para quienes acceden a materiales
+  - **Enviar (derecha):** para quienes gestionan grupos
+- Formulario de "Apuntarme" integrado en bloque Recibir con diseño pulido
+- Sección "Ya estoy apuntado" con CTA a `/acceso-alumno`
+- Bloque Enviar con características y CTA principal a `/login`
+- Diseño profesional: cards con sombras, espaciado generoso, colores semánticos
+- Footer limpio con branding
+
+**2. `src/pages/LoginProfesor.jsx` - Naming actualizado:**
+- Título cambiado: "Acceso para profesores" → "Acceso para enviar"
+- Subtítulo más generalista
+- Cabecera del archivo actualizada con comentario de decisión UX
+
+**3. `src/pages/AccesoAlumno.jsx` - Naming actualizado:**
+- Título cambiado: "Acceso para alumnos" → "Acceso para recibir"
+- Cabecera del archivo actualizada con comentario de decisión UX
+
+**4. `docs/ESTADO_ACTUAL.md` - Documentación actualizada:**
+- Descripción del producto alineada con enfoque generalista
+- Flujos renombrados: Recibir/Enviar en lugar de Alumno/Profesor
+- Tablas documentadas con notas sobre naming UX vs BD
+- Problemas abiertos actualizados
+- Próximos pasos revisados
+
+### Principios aplicados
+- **UX generalista:** "Recibir/Enviar" en lugar de "Alumno/Profesor" en toda la interfaz
+- **Sin ruptura técnica:** Tablas SQL y lógica interna permanecen iguales
+- **Integración limpia:** Formulario de apuntarse integrado, no duplicado
+- **Jerarquía visual clara:** Hero + dos cards principales + CTAs evidentes
+- **Responsive correcto:** Grid que se apila en móvil
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/Home.jsx` | Reescrito | Landing unificada con bloques Recibir/Enviar |
+| `src/pages/LoginProfesor.jsx` | Modificado | Copy actualizado a "Acceso para enviar" |
+| `src/pages/AccesoAlumno.jsx` | Modificado | Copy actualizado a "Acceso para recibir" |
+| `docs/ESTADO_ACTUAL.md` | Actualizado | Flujos, tablas y decisiones documentadas |
+
+### Cómo probar manualmente
+
+**1. Landing principal (`/`):**
+- Verificar que aparecen dos bloques: Recibir (verde) y Enviar (azul)
+- Probar formulario de apuntarse en bloque Recibir
+- Verificar CTA "Acceder a mis materiales" lleva a `/acceso-alumno`
+- Verificar CTA "Entrar al panel de gestión" lleva a `/login`
+
+**2. Flujo Recibir completo:**
+- Apuntarse a un grupo desde la home
+- Acceder a `/acceso-alumno` con código + email
+- Verificar redirección a `/mis-materiales`
+
+**3. Flujo Enviar:**
+- Acceder a `/login` y verificar nuevo copy
+- Iniciar sesión y verificar redirección al panel
+- Verificar que el panel funciona normalmente
+
+### Decisiones UX tomadas
+- **Integración vs Separación:** Se integró el formulario de "apuntarse" en la home dentro del bloque Recibir, pero se mantuvo `/acceso-alumno` como página separada para evitar confusión entre "primer registro" y "acceso posterior". Esto da claridad sin duplicar lógica.
+- **Dos bloques visuales:** Se optó por cards lado a lado en desktop para transmitir igualdad de importancia entre ambos perfiles de usuario.
+
+---
+
 ## 2026-04-19 - Pulido visual y UX de todas las pantallas
 
 **Objetivo:** Hacer que EnviaEso se vea más limpio, claro y profesional sin rediseño extremo, mejorando la experiencia del profesor y del alumno.  

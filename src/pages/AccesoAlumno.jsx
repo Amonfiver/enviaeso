@@ -1,18 +1,19 @@
 /**
  * Propósito:
- * Página de acceso para alumnos. Permite identificarse con código de grupo
- * y email para acceder a sus materiales.
+ * Página de acceso para quienes reciben materiales. Permite identificarse
+ * con código de grupo y email para acceder a sus documentos.
  *
  * Alcance:
  * - Formulario de acceso con código de grupo y email
- * - Validación de que el alumno pertenece al grupo
+ * - Validación de que el receptor pertenece al grupo
  * - Redirección a la página de materiales si la identificación es válida
- * - Sin exponer datos de otros alumnos
+ * - Sin exponer datos de otros receptores
  *
  * Decisiones:
+ * - Naming generalista: "Recibir" en lugar de "Alumno"
  * - Usa código de grupo + email como credenciales (datos ya existentes)
  * - No requiere contraseña (acceso simple, sin auth compleja)
- * - Solo muestra información del propio alumno (privacidad)
+ * - Solo muestra información del propio usuario (privacidad)
  *
  * Limitaciones:
  * - Sin autenticación persistente (sesión por navegación)
@@ -150,7 +151,7 @@ export default function AccesoAlumno() {
           🎓
         </div>
         <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px', color: '#101828' }}>
-          Acceso para alumnos
+          Acceso para recibir
         </h1>
         <p style={{ color: '#667085', fontSize: '16px', lineHeight: '1.5' }}>
           Introduce el código de tu grupo y tu email para ver tus materiales.
