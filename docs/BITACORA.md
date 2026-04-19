@@ -58,6 +58,121 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Consistencia de datos del profesor y CRUD básico de perfil
+
+**Objetivo:** Resolver la desincronización entre Supabase Auth y tabla `profesores`, e implementar CRUD básico de perfil del profesor.  
+**Estado:** ✅ Completado
+
+### Causa exacta del problema de consistencia
+Existía una **desincronización entre Supabase Auth y la tabla `profesores`**:
+- Si un profesor existía en Auth pero se borraba manualmente su fila en `profesores`, el sistema quedaba en estado inconsistente
+- El profesor podía seguir accediendo (auth válido) pero sin datos de negocio (nombre, relaciones)
+- Esto provocaba fallos funcionales: no mostraba nombre, errores al crear grupos, etc.
+
+### Solución implementada
+
+**1. Función de consistencia automática (`auth.js`):**
+- Nueva función `obtenerOCrearPerfilProfesor(userId, email, nombre)`:
+  - Intenta obtener el perfil de la tabla `profesores`
+  - Si existe → lo devuelve
+  - Si no existe → **lo crea automáticamente** con los datos mínimos (id, email, nombre opcional)
+  - Esto garantiza que nunca haya un usuario autenticado sin perfil asociado
+
+**2. CRUD básico de perfil:**
+- Nueva función `actualizarPerfilProfesor(userId, datos)` para actualizar datos del profesor
+- En el panel, ahora hay un botón "Editar perfil" / "Completar perfil" junto al saludo
+- Al hacer clic, aparece un formulario inline para editar el nombre
+- Validación: el nombre no puede estar vacío
+- Feedback visual de éxito/error
+
+**3. Manejo de errores críticos:**
+- Si falla la carga/creación del perfil, se muestra un mensaje claro: "No se pudo cargar tu perfil. Intenta recargar la página."
+- Se permite acceso básico con datos de auth mínimos (sin romper la app)
+- Botón para "Cerrar sesión y reintentar"
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/services/auth.js` | Modificado | Nuevas funciones `obtenerOCrearPerfilProfesor` y `actualizarPerfilProfesor` |
+| `src/pages/Panel.jsx` | Modificado | Uso de consistencia automática, estados y handlers para edición de perfil, UI inline |
+
+### Cómo se comporta ahora el panel si falta la fila en `profesores`
+1. Usuario hace login → auth válido
+2. Al entrar a `/panel`, se ejecuta `obtenerOCrearPerfilProfesor()`
+3. Si no existe la fila → **se crea automáticamente** con:
+   - `id`: del usuario auth
+   - `email`: del usuario auth
+   - `nombre`: null (o el que venga de user_metadata si existe)
+4. El panel carga normalmente, mostrando "Bienvenido." (sin nombre hasta que lo complete)
+5. Aparece botón "Completar perfil" para que el profesor añada su nombre
+
+### Cómo se edita ahora el nombre del profesor
+1. En el panel, junto al saludo hay un botón pequeño:
+   - Si tiene nombre: "Editar perfil"
+   - Si no tiene nombre: "Completar perfil"
+2. Al hacer clic, aparece un formulario inline (fondo azul claro) con:
+   - Input de texto con el nombre actual (o vacío)
+   - Botón "Guardar" / "Guardando..."
+   - Botón "Cancelar"
+3. Al guardar:
+   - Se valida que no esté vacío
+   - Se actualiza en la tabla `profesores`
+   - Se actualiza el estado local del panel
+   - Se muestra mensaje de éxito
+   - El saludo se actualiza inmediatamente
+
+### Qué haría falta para borrado completo de cuenta de forma segura
+
+**Arquitectura recomendada (no implementada en este bloque):**
+
+1. **Borrado de datos de negocio (soft delete):**
+   - Marcar profesor como `eliminado: true` en tabla `profesores`
+   - Opcionalmente anonimizar datos: cambiar nombre a "(usuario eliminado)", email a hash
+   - Mantener grupos/alumnos/materiales para integridad histórica, o borrarlos en cascada según necesidad
+
+2. **Borrado de Auth (requiere backend seguro):**
+   - No se puede hacer desde frontend de forma segura (requiere service_role key)
+   - Opciones:
+     - a) **Edge Function de Supabase** con service_role key que borre el usuario de Auth
+     - b) **Proceso manual** por admin en Supabase Dashboard
+     - c) **Cola de borrado** programado que ejecute un job de limpieza periódico
+
+3. **Flujo recomendado:**
+   - Usuario solicita borrado en UI → marca `solicitud_borrado: true` en `profesores`
+   - Sistema deja de enviar emails, desactiva funcionalidades
+   - Admin/Job procesa la cola y borra de Auth de forma segura
+   - Se envía confirmación de "derecho al olvido" completado
+
+**Nota:** No se implementó borrado desde frontend porque requiere privilegios de admin que no deben exponerse al cliente.
+
+### Cómo probar manualmente todo esto
+
+**1. Probar consistencia automática:**
+   - En Supabase Dashboard, borrar manualmente el registro de un profesor de la tabla `profesores`
+   - Hacer login con ese profesor en `/login`
+   - Al entrar a `/panel`, verificar que:
+     - No hay errores
+     - Se muestra "Bienvenido." (sin nombre)
+     - El panel funciona normalmente
+   - Verificar en Supabase Dashboard que la fila se ha recreado automáticamente
+
+**2. Probar edición de perfil:**
+   - En el panel, hacer clic en "Completar perfil"
+   - Escribir un nombre, guardar
+   - Verificar que:
+     - El saludo cambia a "Hola, {nombre}."
+     - El botón cambia a "Editar perfil"
+     - En Supabase Dashboard el nombre está guardado
+   - Recargar la página y verificar que persiste el nombre
+
+**3. Probar error crítico (simulado):**
+   - Modificar temporalmente RLS para bloquear acceso a `profesores`
+   - Intentar entrar al panel
+   - Verificar que aparece mensaje de error amigable
+   - Verificar que hay botón para cerrar sesión
+
+---
+
 ## 2026-04-19 - Fix: Carga del nombre del profesor en el panel
 
 **Objetivo:** Corregir que el nombre del profesor no se mostraba en el panel aunque existía en la tabla `profesores`.  

@@ -42,7 +42,12 @@ import {
   formatearTamaño,
 } from '../services/storage';
 import { enviarCorreoReal } from '../services/email';
-import { logoutProfesor, obtenerUsuarioActual } from '../services/auth';
+import { 
+  logoutProfesor, 
+  obtenerUsuarioActual, 
+  obtenerOCrearPerfilProfesor,
+  actualizarPerfilProfesor,
+} from '../services/auth';
 
 export default function Panel() {
   const navigate = useNavigate();
@@ -96,6 +101,12 @@ export default function Panel() {
   // Estado para último envío del grupo (trazabilidad mínima)
   const [ultimoEnvioGrupo, setUltimoEnvioGrupo] = useState({});
 
+  // Estado para edición de perfil
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [nombreEditado, setNombreEditado] = useState('');
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [errorPerfil, setErrorPerfil] = useState(null);
+
   // Verificar autenticación al cargar y cargar datos del profesor desde BD
   useEffect(() => {
     const verificarAuth = async () => {
@@ -109,21 +120,22 @@ export default function Panel() {
       
       console.log('[Panel] Usuario autenticado:', user.id);
       
-      // Cargar datos del profesor desde la tabla profesores (incluyendo nombre)
-      const { data: profesorData, error: profesorError } = await supabase
-        .from('profesores')
-        .select('id, email, nombre')
-        .eq('id', user.id)
-        .single();
+      // Usar la función de consistencia: obtener o crear perfil automáticamente
+      const { data: perfilData, error: perfilError } = await obtenerOCrearPerfilProfesor(
+        user.id, 
+        user.email,
+        user.user_metadata?.nombre || null
+      );
       
-      if (profesorError) {
-        console.error('[Panel] Error al cargar datos del profesor:', profesorError.message);
-        // Si no se encuentra en la tabla, usar los datos básicos de auth
+      if (perfilError) {
+        console.error('[Panel] Error al obtener/crear perfil:', perfilError.message);
+        setErrorPerfil('No se pudo cargar tu perfil. Intenta recargar la página.');
+        // Aún así permitimos acceso básico con datos de auth
         setProfesor({ ...user, nombre: null });
       } else {
-        console.log('[Panel] Datos del profesor cargados:', profesorData?.nombre);
-        // Combinar datos de auth con datos de la tabla profesores
-        setProfesor({ ...user, ...profesorData });
+        console.log('[Panel] Perfil cargado:', perfilData?.nombre || '(sin nombre)');
+        // Combinar datos de auth con datos del perfil
+        setProfesor({ ...user, ...perfilData });
       }
       
       setLoadingAuth(false);
@@ -907,6 +919,56 @@ export default function Panel() {
     }
   };
 
+  /**
+   * Activa el modo edición de perfil
+   */
+  const handleEditarPerfil = () => {
+    setNombreEditado(profesor?.nombre || '');
+    setEditandoPerfil(true);
+    setErrorPerfil(null);
+  };
+
+  /**
+   * Cancela la edición de perfil
+   */
+  const handleCancelarEdicionPerfil = () => {
+    setEditandoPerfil(false);
+    setNombreEditado('');
+    setErrorPerfil(null);
+  };
+
+  /**
+   * Guarda los cambios del perfil del profesor
+   */
+  const handleGuardarPerfil = async () => {
+    const nombreNormalizado = nombreEditado.trim();
+    
+    if (!nombreNormalizado) {
+      setErrorPerfil('El nombre no puede estar vacío.');
+      return;
+    }
+
+    setGuardandoPerfil(true);
+    setErrorPerfil(null);
+
+    const { data, error } = await actualizarPerfilProfesor(profesor.id, {
+      nombre: nombreNormalizado,
+    });
+
+    if (error) {
+      setErrorPerfil('No se pudo guardar el perfil. Inténtalo de nuevo.');
+      console.error('[Panel] Error al guardar perfil:', error);
+    } else {
+      // Actualizar el estado local con el nuevo nombre
+      setProfesor((prev) => ({ ...prev, nombre: data.nombre }));
+      setEditandoPerfil(false);
+      setMensaje('Perfil actualizado correctamente.');
+      setTipoMensaje('success');
+    }
+
+    setGuardandoPerfil(false);
+  };
+
   // Mostrar loading mientras verificamos autenticación
   if (loadingAuth) {
     return (
@@ -916,17 +978,101 @@ export default function Panel() {
     );
   }
 
+  // Si hay error crítico de perfil, mostrar mensaje
+  if (errorPerfil && !profesor) {
+    return (
+      <div className="container">
+        <h1>Error al cargar perfil</h1>
+        <p style={{ color: '#b42318' }}>{errorPerfil}</p>
+        <button onClick={handleLogout} style={{ marginTop: '16px' }}>
+          Cerrar sesión y reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <h1>Panel del profesor</h1>
-          <p>
-            {profesor?.nombre 
-              ? `Hola, ${profesor.nombre}. ` 
-              : 'Bienvenido. '}
-            Crea un grupo y obtén un código para compartir con tus alumnos.
-          </p>
+          {editandoPerfil ? (
+            // Modo edición de perfil
+            <div style={{ marginTop: '8px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1' }}>
+                Editando tu perfil:
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={nombreEditado}
+                  onChange={(e) => setNombreEditado(e.target.value)}
+                  placeholder="Tu nombre"
+                  disabled={guardandoPerfil}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d0d5dd',
+                    fontSize: '14px',
+                    minWidth: '200px',
+                  }}
+                />
+                <button
+                  onClick={handleGuardarPerfil}
+                  disabled={guardandoPerfil}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    minWidth: 'auto',
+                  }}
+                >
+                  {guardandoPerfil ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  onClick={handleCancelarEdicionPerfil}
+                  disabled={guardandoPerfil}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    minWidth: 'auto',
+                    backgroundColor: '#f2f4f7',
+                    color: '#344054',
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+              {errorPerfil && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#b42318' }}>
+                  {errorPerfil}
+                </p>
+              )}
+            </div>
+          ) : (
+            // Modo visualización normal
+            <p>
+              {profesor?.nombre 
+                ? `Hola, ${profesor.nombre}. ` 
+                : 'Bienvenido. '}
+              Crea un grupo y obtén un código para compartir con tus alumnos.
+              <button
+                onClick={handleEditarPerfil}
+                style={{
+                  marginLeft: '8px',
+                  padding: '2px 8px',
+                  fontSize: '12px',
+                  minWidth: 'auto',
+                  backgroundColor: 'transparent',
+                  color: '#1570ef',
+                  border: '1px solid #1570ef',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                {profesor?.nombre ? 'Editar perfil' : 'Completar perfil'}
+              </button>
+            </p>
+          )}
         </div>
         <button
           onClick={handleLogout}

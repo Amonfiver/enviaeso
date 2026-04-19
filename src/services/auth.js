@@ -186,6 +186,72 @@ export const haySesionActiva = async () => {
   return !!data.session;
 };
 
+/**
+ * Obtiene o crea el perfil del profesor en la tabla profesores.
+ * Si no existe, lo crea automáticamente con los datos de auth.
+ * @param {string} userId - ID del usuario de Supabase Auth
+ * @param {string} email - Email del usuario
+ * @param {string|null} nombre - Nombre del profesor (opcional)
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export const obtenerOCrearPerfilProfesor = async (userId, email, nombre = null) => {
+  // 1. Intentar obtener el perfil existente
+  const { data: perfilExistente, error: errorSelect } = await supabase
+    .from('profesores')
+    .select('id, email, nombre, created_at')
+    .eq('id', userId)
+    .single();
+
+  if (perfilExistente) {
+    console.log('[Auth] Perfil de profesor encontrado:', perfilExistente.nombre || email);
+    return { data: perfilExistente, error: null };
+  }
+
+  // 2. Si no existe, crearlo automáticamente
+  console.log('[Auth] Perfil no encontrado, creando automáticamente...');
+  
+  const { data: nuevoPerfil, error: errorInsert } = await supabase
+    .from('profesores')
+    .insert({
+      id: userId,
+      email: email,
+      nombre: nombre || null,
+    })
+    .select()
+    .single();
+
+  if (errorInsert) {
+    console.error('[Auth] Error al crear perfil automáticamente:', errorInsert.message);
+    return { data: null, error: errorInsert };
+  }
+
+  console.log('[Auth] Perfil creado automáticamente:', nuevoPerfil);
+  return { data: nuevoPerfil, error: null };
+};
+
+/**
+ * Actualiza el perfil del profesor.
+ * @param {string} userId - ID del usuario
+ * @param {object} datos - Datos a actualizar (nombre, etc.)
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export const actualizarPerfilProfesor = async (userId, datos) => {
+  const { data, error } = await supabase
+    .from('profesores')
+    .update(datos)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[Auth] Error al actualizar perfil:', error.message);
+    return { data: null, error };
+  }
+
+  console.log('[Auth] Perfil actualizado:', data);
+  return { data, error: null };
+};
+
 // Exportar todo como objeto AuthService para uso opcional como namespace
 export const AuthService = {
   registrar: registrarProfesor,
@@ -195,4 +261,6 @@ export const AuthService = {
   obtenerUsuarioActual,
   suscribirCambiosAuth,
   haySesionActiva,
+  obtenerOCrearPerfilProfesor,
+  actualizarPerfilProfesor,
 };
