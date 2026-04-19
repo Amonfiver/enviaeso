@@ -20,21 +20,43 @@
  * - Sin magic links todavía
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 
 export default function AccesoAlumno() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [codigoGrupo, setCodigoGrupo] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [tipoMensaje, setTipoMensaje] = useState('');
+  const [autoAccesoIntentado, setAutoAccesoIntentado] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Leer query params al cargar
+  useEffect(() => {
+    const codigoParam = searchParams.get('codigo');
+    const emailParam = searchParams.get('email');
+
+    if (codigoParam && emailParam) {
+      setCodigoGrupo(codigoParam);
+      setEmail(emailParam);
+      // Intentar acceso automático si ambos parámetros existen
+      setAutoAccesoIntentado(true);
+    }
+  }, [searchParams]);
+
+  // Intentar acceso automático cuando los estados se actualicen
+  useEffect(() => {
+    if (autoAccesoIntentado && codigoGrupo && email) {
+      handleValidarAcceso();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codigoGrupo, email, autoAccesoIntentado]);
+
+  const handleValidarAcceso = async () => {
     setLoading(true);
     setMensaje('');
     setTipoMensaje('');
@@ -53,7 +75,7 @@ export default function AccesoAlumno() {
       // 1. Buscar el grupo por código
       const { data: grupo, error: errorGrupo } = await supabase
         .from('grupos')
-        .select('id, nombre, profesor_id')
+        .select('id, nombre, profesor_id, profesor:profesor_id(nombre)')
         .eq('codigo', codigoNormalizado)
         .single();
 
@@ -90,6 +112,7 @@ export default function AccesoAlumno() {
           grupo: {
             id: grupo.id,
             nombre: grupo.nombre,
+            profesorNombre: grupo.profesor?.nombre || 'Tu profesor',
           },
         },
       });
@@ -100,6 +123,11 @@ export default function AccesoAlumno() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await handleValidarAcceso();
   };
 
   return (

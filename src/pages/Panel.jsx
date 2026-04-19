@@ -615,6 +615,62 @@ export default function Panel() {
   const fileInputRefs = useRef({});
 
   /**
+   * Genera el enlace de acceso para un alumno.
+   * Usa la URL base del frontend (configurable por entorno).
+   */
+  const generarEnlaceAcceso = (codigoGrupo, emailAlumno) => {
+    // URL base del frontend - usar variable de entorno o fallback a localhost
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const params = new URLSearchParams({
+      codigo: codigoGrupo,
+      email: emailAlumno,
+    });
+    return `${baseUrl}/acceso-alumno?${params.toString()}`;
+  };
+
+  /**
+   * Genera el contenido del email personalizado.
+   */
+  const generarContenidoEmail = (nombreAlumno, nombreGrupo, nombreProfesor, codigoGrupo, emailAlumno) => {
+    const enlaceAcceso = generarEnlaceAcceso(codigoGrupo, emailAlumno);
+    
+    const html = `
+      <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+        <h2 style="color: #1570ef; margin-bottom: 20px;">📚 Hay nuevo material disponible</h2>
+        
+        <p>Hola ${nombreAlumno},</p>
+        
+        <p><strong>${nombreProfesor}</strong> ha compartido nuevo material en tu grupo <strong>"${nombreGrupo}"</strong> a través de <strong>EnviaEso</strong>.</p>
+        
+        <div style="background: #f0f9ff; border-left: 4px solid #1570ef; padding: 16px; margin: 20px 0;">
+          <p style="margin: 0 0 12px 0;">Puedes acceder a tus materiales aquí:</p>
+          <a href="${enlaceAcceso}" style="display: inline-block; background: #1570ef; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 500;">Ver mis materiales</a>
+        </div>
+        
+        <p style="color: #667085; font-size: 14px;">O copia y pega este enlace en tu navegador:<br>${enlaceAcceso}</p>
+        
+        <hr style="border: none; border-top: 1px solid #e4e7ec; margin: 24px 0;">
+        
+        <p style="color: #667085; font-size: 13px; margin: 0;">
+          Enviado desde EnviaEso • <a href="${import.meta.env.VITE_APP_URL || window.location.origin}" style="color: #1570ef;">enviaeso.com</a>
+        </p>
+      </div>
+    `;
+
+    const text = `Hola ${nombreAlumno},
+
+${nombreProfesor} ha compartido nuevo material en tu grupo "${nombreGrupo}" a través de EnviaEso.
+
+Puedes acceder a tus materiales aquí:
+${enlaceAcceso}
+
+---
+Enviado desde EnviaEso • enviaeso.com`;
+
+    return { html, text, enlaceAcceso };
+  };
+
+  /**
    * Envía un aviso real a un alumno específico seleccionado.
    * Usa el email almacenado internamente (no visible en UI) para enviar el correo.
    * El profesor nunca ve el email del alumno.
@@ -626,15 +682,31 @@ export default function Panel() {
       return;
     }
 
+    // Obtener datos del grupo actual
+    const grupoActual = grupos.find(g => g.id === grupoAlumnosAbierto);
+    if (!grupoActual) {
+      setMensaje('Error: no se encontró el grupo.');
+      setTipoMensaje('error');
+      return;
+    }
+
     setLoadingAvisoAlumno(true);
     setMensaje('');
     setTipoMensaje('');
 
+    const { html, text } = generarContenidoEmail(
+      alumnoSeleccionado.nombre,
+      grupoActual.nombre,
+      profesor?.nombre || 'Tu profesor',
+      grupoActual.codigo,
+      alumnoSeleccionado.email
+    );
+
     const resultado = await enviarCorreoReal({
       to: alumnoSeleccionado.email,
-      subject: 'Aviso de tu grupo en EnviaEso',
-      html: `<p>Hola ${alumnoSeleccionado.nombre},</p><p>Este es un mensaje de aviso enviado por tu profesor desde <strong>EnviaEso</strong>.</p><p>Revisa tu grupo para ver si hay novedades o materiales disponibles.</p><p>---<br>Enviado desde EnviaEso</p>`,
-      text: `Hola ${alumnoSeleccionado.nombre},\n\nEste es un mensaje de aviso enviado por tu profesor desde EnviaEso.\n\nRevisa tu grupo para ver si hay novedades o materiales disponibles.\n\n---\nEnviado desde EnviaEso`
+      subject: `Nuevo material en ${grupoActual.nombre} - EnviaEso`,
+      html,
+      text
     });
 
     if (resultado.success) {
@@ -721,11 +793,20 @@ export default function Panel() {
       return;
     }
 
+    // Obtener datos del grupo actual
+    const grupoActual = grupos.find(g => g.id === grupoAlumnosAbierto);
+    if (!grupoActual) {
+      setMensaje('Error: no se encontró el grupo.');
+      setTipoMensaje('error');
+      return;
+    }
+
     // Confirmación previa
     const confirmacion = window.confirm(
       `¿Estás seguro de que quieres enviar un aviso a todos los alumnos de este grupo?\n\n` +
+      `Grupo: ${grupoActual.nombre}\n` +
       `Total de destinatarios: ${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''}\n\n` +
-      `Se enviará un email a cada alumno usando su dirección registrada.`
+      `Se enviará un email personalizado a cada alumno con un enlace directo a sus materiales.`
     );
 
     if (!confirmacion) {
@@ -744,11 +825,19 @@ export default function Panel() {
     // Envío secuencial con pausa breve entre cada email
     for (const alumno of alumnos) {
       try {
+        const { html, text } = generarContenidoEmail(
+          alumno.nombre,
+          grupoActual.nombre,
+          profesor?.nombre || 'Tu profesor',
+          grupoActual.codigo,
+          alumno.email
+        );
+
         const resultado = await enviarCorreoReal({
           to: alumno.email,
-          subject: 'Aviso de tu grupo en EnviaEso',
-          html: `<p>Hola ${alumno.nombre},</p><p>Este es un mensaje de aviso enviado por tu profesor desde <strong>EnviaEso</strong>.</p><p>Revisa tu grupo para ver si hay novedades o materiales disponibles.</p><p>---<br>Enviado desde EnviaEso</p>`,
-          text: `Hola ${alumno.nombre},\n\nEste es un mensaje de aviso enviado por tu profesor desde EnviaEso.\n\nRevisa tu grupo para ver si hay novedades o materiales disponibles.\n\n---\nEnviado desde EnviaEso`
+          subject: `Nuevo material en ${grupoActual.nombre} - EnviaEso`,
+          html,
+          text
         });
 
         resultadosPorAlumno.push({

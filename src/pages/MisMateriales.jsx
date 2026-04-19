@@ -81,14 +81,27 @@ export default function MisMateriales() {
     setTipoMensaje('');
 
     try {
-      const { url, error } = await obtenerUrlDescarga(material.url_storage);
+      const { url, error } = await obtenerUrlDescarga(material.url_storage, 300); // 5 minutos de validez
 
       if (error || !url) {
         throw new Error(error || 'No se pudo generar el enlace de descarga');
       }
 
-      // Abrir en nueva pestaña para descarga
-      window.open(url, '_blank');
+      // Crear enlace temporal para forzar descarga
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = material.nombre_archivo; // Sugerir nombre de archivo
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar después de un momento
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+
+      setMensaje(`Descargando "${material.nombre_archivo}"...`);
+      setTipoMensaje('success');
     } catch (error) {
       console.error('[MisMateriales] Error al descargar:', error);
       setMensaje(`Error al descargar "${material.nombre_archivo}". Inténtalo de nuevo.`);

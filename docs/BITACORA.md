@@ -1423,6 +1423,216 @@ El `Panel.jsx` estaba usando solo el objeto `user` devuelto por `obtenerUsuarioA
 
 ---
 
+## 2026-04-19 - Cierre del círculo: email con enlace, acceso auto y descarga mejorada
+
+**Objetivo:** Cerrar el círculo real del producto: que el email lleve un enlace útil de vuelta, que el acceso del alumno sea más cómodo, y mejorar la descarga.  
+**Estado:** ✅ Completado
+
+### A. Mejorar el acceso desde email para el alumno
+
+**Modificado `src/pages/AccesoAlumno.jsx`:**
+- Ahora acepta query params: `codigo` y `email`
+- Usa `useSearchParams` de React Router para leer los parámetros
+- Si ambos parámetros existen en la URL:
+  - Rellena automáticamente el formulario
+  - Intenta acceso automático tras cargar
+- Si faltan o son inválidos, mantiene el flujo manual normal
+- Ejemplo de URL: `/acceso-alumno?codigo=ABC123&email=alumno@correo.com`
+
+**Comportamiento:**
+1. Alumno recibe email con enlace
+2. Al pulsar el enlace, llega a `/acceso-alumno?codigo=X&email=Y`
+3. El formulario se rellena automáticamente
+4. Se intenta acceso automático
+5. Si es válido, redirige directamente a `/mis-materiales`
+6. Si falla, muestra error y permite intentar manualmente
+
+### B. Enlazar el correo real con el flujo mejorado
+
+**Modificado `src/pages/Panel.jsx`:**
+- Nuevas funciones:
+  - `generarEnlaceAcceso(codigoGrupo, emailAlumno)`: genera URL completa con parámetros
+  - `generarContenidoEmail(...)`: crea HTML y texto del email personalizado
+- URL base configurable via `VITE_APP_URL` o fallback a `window.location.origin`
+- El enlace incluye código y email: `/acceso-alumno?codigo=...&email=...`
+
+### C. Personalizar el contenido del email
+
+**Nuevo formato del email:**
+- **Asunto:** `Nuevo material en {nombreGrupo} - EnviaEso`
+- **HTML:**
+  - Título: "📚 Hay nuevo material disponible"
+  - Saludo personalizado con nombre del alumno
+  - Mensaje con nombre del profesor y nombre del grupo
+  - Botón destacado: "Ver mis materiales" (azul, con padding)
+  - Enlace alternativo como texto plano debajo
+  - Footer con marca EnviaEso
+- **Texto plano:** Versión limpia para clientes que no soportan HTML
+- Ambas versiones incluyen el enlace directo
+
+**En ambos envíos (individual y masivo):**
+- Se usa el mismo formato personalizado
+- Se incluye nombre del profesor (desde el perfil)
+- Se incluye nombre del grupo
+- Asunto dinámico con nombre del grupo
+
+### D. Mejorar la descarga de materiales
+
+**Modificado `src/pages/MisMateriales.jsx`:**
+- Cambiado el tiempo de validez de la URL: de 60s a 300s (5 minutos)
+- Nueva estrategia de descarga más natural:
+  - Antes: `window.open(url, '_blank')` (podía abrir en navegador)
+  - Ahora: crea un enlace `<a>` temporal con atributo `download`
+  - Fuerza la descarga con el nombre original del archivo
+  - Limpia el DOM después de la descarga
+- Feedback visual: "Descargando..." mientras se procesa
+- Mensaje de confirmación tras iniciar la descarga
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/AccesoAlumno.jsx` | Modificado | Acepta query params, auto-relleno, auto-acceso |
+| `src/pages/Panel.jsx` | Modificado | Generador de enlaces, generador de contenido de email, email personalizado |
+| `src/pages/MisMateriales.jsx` | Modificado | Descarga forzada con nombre de archivo, URL válida 5 minutos |
+
+### Cómo queda ahora el enlace dentro del correo
+
+**Formato:**
+```
+https://enviaeso.com/acceso-alumno?codigo=ABC123&email=alumno%40ejemplo.com
+```
+
+**Componentes:**
+- Base: `VITE_APP_URL` (o `window.location.origin` en desarrollo)
+- Path: `/acceso-alumno`
+- Query params: `codigo` y `email` (URL-encoded)
+
+**Ejemplo real:**
+```html
+<a href="https://enviaeso.com/acceso-alumno?codigo=ABC123&email=maria%40gmail.com" 
+   style="display: inline-block; background: #1570ef; color: white; padding: 12px 24px; 
+          text-decoration: none; border-radius: 8px; font-weight: 500;">
+  Ver mis materiales
+</a>
+```
+
+### Cómo se comporta `AccesoAlumno` si recibe query params
+
+**Caso 1: Params válidos (`?codigo=ABC&email=maria@test.com`)**
+1. Los inputs se rellenan automáticamente
+2. Se intenta validación automática
+3. Si es válido: redirige a `/mis-materiales` sin interacción
+4. Si es inválido: muestra error y permite intentar manualmente
+
+**Caso 2: Params incompletos (`?codigo=ABC`)**
+1. Se rellena solo el código
+2. El email queda vacío
+3. El usuario debe completar y pulsar el botón
+
+**Caso 3: Sin params**
+1. Formulario vacío normal
+2. Flujo manual estándar
+
+**Caso 4: Params inválidos**
+1. Se rellenan los inputs con los valores recibidos
+2. Al intentar validar, muestra error específico
+3. El usuario puede corregir y reintentar
+
+### Cómo queda el contenido del email
+
+**Versión HTML:**
+```html
+📚 Hay nuevo material disponible
+
+Hola {nombreAlumno},
+
+{nombreProfesor} ha compartido nuevo material en tu grupo "{nombreGrupo}" 
+a través de EnviaEso.
+
+[Botón azul: Ver mis materiales] -> enlace con params
+
+O copia y pega este enlace en tu navegador:
+https://enviaeso.com/acceso-alumno?codigo=...&email=...
+
+---
+Enviado desde EnviaEso • enviaeso.com
+```
+
+**Versión texto plano:**
+```
+Hola {nombreAlumno},
+
+{nombreProfesor} ha compartido nuevo material en tu grupo "{nombreGrupo}" 
+a través de EnviaEso.
+
+Puedes acceder a tus materiales aquí:
+https://enviaeso.com/acceso-alumno?codigo=...&email=...
+
+---
+Enviado desde EnviaEso • enviaeso.com
+```
+
+### Qué se hizo para mejorar la descarga
+
+**Antes:**
+- URL firmada de 60 segundos
+- `window.open(url, '_blank')`
+- El navegador decidía si descargar o previsualizar
+- Algunos archivos se abrían en pestaña en lugar de descargar
+
+**Después:**
+- URL firmada de 5 minutos (300 segundos) - más margen
+- Enlace temporal `<a download="nombre_archivo.pdf">`
+- Atributo `download` fuerza la descarga con nombre sugerido
+- El archivo se descarga directamente sin abrir pestañas
+- Feedback inmediato: "Descargando..." y luego mensaje de éxito
+
+### Cómo probarlo manualmente
+
+**1. Preparar el escenario:**
+- Profesor con nombre en perfil
+- Grupo con alumnos y materiales subidos
+
+**2. Probar envío de email:**
+- Ir a `/panel` → seleccionar grupo → "Ver alumnos"
+- Enviar aviso individual a un alumno
+- Verificar en inbox que el email tiene:
+  - Nombre del profesor
+  - Nombre del grupo
+  - Botón "Ver mis materiales"
+  - Enlace alternativo como texto
+
+**3. Probar acceso desde email:**
+- Copiar el enlace del email (o simularlo)
+- Pegar en navegador incógnito
+- Verificar que:
+  - El formulario se rellena automáticamente
+  - Se redirige a `/mis-materiales` (o muestra error si datos inválidos)
+
+**4. Probar descarga:**
+- En `/mis-materiales`, pulsar "Descargar"
+- Verificar que el archivo se descarga directamente (no se abre en pestaña)
+- Verificar que el nombre del archivo es el original
+
+### Qué queda pendiente después de este bloque
+
+**Corto plazo:**
+- Configurar variable de entorno `VITE_APP_URL` para producción
+- Verificar dominio en Resend para evitar spam filters
+- Testing real con profesor y alumnos
+
+**Medio plazo:**
+- Diseño HTML profesional del email (plantilla completa)
+- Tracking de aperturas y clics en emails (pixel + enlaces trackeados)
+- Indicador de "nuevos materiales" vs "ya vistos" para alumnos
+
+**Largo plazo:**
+- Magic links reales con tokens JWT para alumnos
+- Notificaciones push (si se convierte en PWA)
+- App móvil nativa
+
+---
+
 ## 2026-04-19 - Flujo de acceso del alumno y eliminación de prueba de email
 
 **Objetivo:** Quitar el bloque de prueba de email del panel y crear un flujo mínimo pero real para que los alumnos puedan acceder y descargar sus materiales.  
