@@ -954,5 +954,54 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 17  
+---
+
+## 2026-04-19 - Fix CORS para Edge Function send-test-email
+
+**Objetivo:** Resolver el fallo de invocación desde navegador a la Edge Function `send-test-email`, que funcionaba desde PowerShell pero fallaba desde la UI con error "Failed to send a request to the Edge Function".  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Añadido manejo de OPTIONS (preflight CORS)**:
+  - Nueva respuesta 204 para peticiones OPTIONS con headers CORS completos
+  - Necesario porque el frontend (localhost) y la Edge Function (Supabase) están en dominios diferentes
+  
+- [x] **Headers CORS en todas las respuestas**:
+  - Añadida constante `corsHeaders` con: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type, Authorization`
+  - Todos los `return new Response()` ahora incluyen `...corsHeaders`
+  - Esto permite que el navegador acepte la respuesta desde el frontend
+
+- [x] **Actualizada cabecera de documentación**:
+  - Añadido "Soporte CORS para invocación desde navegador (OPTIONS + headers)" al alcance
+  - Añadida decisión técnica #5: CORS PARA NAVEGADOR con justificación
+
+- [x] **Revisada configuración VS Code para Deno**:
+  - `.vscode/settings.json`: Añadido `deno.unstable: false` y config de formatter para TypeScript
+  - `.vscode/import_map.json`: Añadido `scopes: {}` (vacío pero válido)
+  - **NOTA IMPORTANTE**: Los errores `Cannot find name 'Deno'` en VS Code son **falsos positivos del editor**, no errores reales:
+    - La función ya ejecutó correctamente desde PowerShell
+    - El runtime de Supabase Edge Functions tiene Deno disponible
+    - VS Code con extensión Deno debería reconocer `Deno` en archivos bajo `supabase/functions/`
+    - Si persisten, no afectan al funcionamiento real de la función
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `supabase/functions/send-test-email/index.ts` | Modificado | Handler OPTIONS añadido, headers CORS en todas las respuestas, documentación actualizada |
+| `.vscode/settings.json` | Modificado | Configuración Deno mejorada (formatter, unstable flag) |
+| `.vscode/import_map.json` | Modificado | Añadido `scopes: {}` para estructura válida |
+
+### Notas para sesiones futuras
+- **Causa raíz del problema**: El navegador primero envía OPTIONS (preflight) para verificar CORS, y la función devolvía 405 porque solo aceptaba POST. Ahora OPTIONS responde 204 con headers correctos.
+- **Headers CORS compatibles con supabase-js**: `authorization, x-client-info, apikey, content-type` - requeridos para que el cliente de Supabase pueda invocar la función desde el navegador.
+- **Errores VS Code**: Son del entorno/editor, no del runtime. La función funciona en Supabase. Posibles soluciones si molestan:
+  1. Instalar extensión oficial "Deno" de Denoland en VS Code
+  2. Recargar ventana VS Code (`Ctrl+Shift+P` → "Developer: Reload Window")
+  3. Verificar que `deno.enablePaths` apunta correctamente a `supabase/functions`
+- **Para redeployar**: `supabase functions deploy send-test-email`
+- **Para probar desde UI**: Ir a `/panel`, sección "🧪 Prueba de email", introducir email y pulsar "Enviar prueba"
+
+---
+
+**Total de sesiones registradas:** 18  
 **Última actualización:** 19 de abril de 2025

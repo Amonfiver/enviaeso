@@ -15,6 +15,7 @@
  * - Envía correo mediante API de Resend
  * - Devuelve respuesta JSON con resultado claro (éxito/error)
  * - Validaciones básicas de campos requeridos
+ * - Soporte CORS para invocación desde navegador (OPTIONS + headers)
  *
  * ================================================================================
  * DECISIONES TECNICAS IMPORTANTES
@@ -38,6 +39,11 @@
  *    - Siempre JSON, siempre status 200 en caso de éxito
  *    - En errores: status 4xx/5xx con { success: false, error: string }
  *    - En éxito: { success: true, messageId: string }
+ *
+ * 5. CORS PARA NAVEGADOR:
+ *    - Implementado manejo de OPTIONS (preflight)
+ *    - Headers CORS en todas las respuestas para permitir llamadas desde frontend
+ *    - Necesario porque el frontend y la Edge Function están en dominios diferentes
  *
  * ================================================================================
  * LIMITACIONES O ESTADO TEMPORAL
@@ -96,8 +102,24 @@ interface ResendResponse {
   };
 }
 
+// Headers CORS para todas las respuestas
+// Incluye headers requeridos por supabase-js: authorization, x-client-info, apikey, content-type
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 // Handler principal
 serve(async (req: Request) => {
+  // Manejar preflight OPTIONS
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
   // Solo permitir POST
   if (req.method !== "POST") {
     return new Response(
@@ -105,7 +127,10 @@ serve(async (req: Request) => {
         success: false,
         error: `Método ${req.method} no permitido. Usa POST.`,
       }),
-      { status: 405, headers: { "Content-Type": "application/json" } }
+      {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
@@ -120,7 +145,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Body inválido. Se espera JSON válido.",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -133,7 +161,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Campo 'to' es requerido y debe ser un email válido.",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -143,7 +174,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Campo 'subject' es requerido.",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -154,7 +188,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Debe proporcionar 'html' o 'text' como contenido del correo.",
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -167,7 +204,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Error de configuración del servidor: RESEND_API_KEY no configurada.",
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -179,7 +219,10 @@ serve(async (req: Request) => {
           success: false,
           error: "Error de configuración del servidor: EMAIL_FROM no configurada.",
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -218,7 +261,10 @@ serve(async (req: Request) => {
           success: false,
           error: resendData.error?.message || "Error al enviar correo via Resend",
         }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -232,7 +278,10 @@ serve(async (req: Request) => {
         to: to.trim(),
         subject: subject.trim(),
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
 
   } catch (error) {
@@ -243,7 +292,10 @@ serve(async (req: Request) => {
         success: false,
         error: "Error interno del servidor",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
