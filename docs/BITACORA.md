@@ -767,5 +767,65 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 13  
-**Última actualización:** 18 de abril de 2025
+## 2026-04-19 - Edge Function send-test-email con Resend (server-side)
+
+**Objetivo:** Crear la pieza mínima server-side para envío real seguro de un correo de prueba usando Supabase Edge Function + Resend, sin exponer secretos en cliente.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Creada estructura de Supabase Edge Functions**: `supabase/functions/send-test-email/index.ts`
+- [x] **Implementado handler en TypeScript/Deno**:
+  - Acepta solo peticiones POST
+  - Lee `RESEND_API_KEY` desde variables de entorno de Supabase (server-side)
+  - Acepta payload JSON con `to`, `subject`, y `html` o `text`
+  - Envía correo real usando API de Resend (`https://api.resend.com/emails`)
+  - Devuelve respuesta JSON clara: `{ success: true, messageId: string }` o `{ success: false, error: string }`
+- [x] **Añadidas validaciones básicas**:
+  - Verifica método POST (rechaza otros con 405)
+  - Verifica JSON válido en body
+  - Verifica presencia de `to`, `subject`, y al menos `html` o `text`
+  - Verifica que `RESEND_API_KEY` esté configurada
+- [x] **Añadida cabecera de documentación completa** en el archivo:
+  - Propósito del archivo
+  - Alcance
+  - Decisiones técnicas importantes (por qué Edge Functions, seguridad, validaciones, formato de respuesta)
+  - Limitaciones temporales (sin auth, sin rate-limiting)
+  - Configuración requerida
+  - Uso esperado con ejemplo de request
+- [x] **Configuración de VS Code para Deno**:
+  - Creado `.vscode/settings.json` para habilitar Deno en carpeta `supabase/functions`
+  - Creado `.vscode/import_map.json` para imports de Deno
+
+### Archivos creados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `supabase/functions/send-test-email/index.ts` | Creado | Edge Function completa: handler POST, validaciones, llamada a Resend, respuestas JSON |
+| `.vscode/settings.json` | Creado | Configuración VS Code para entender sintaxis Deno en Edge Functions |
+| `.vscode/import_map.json` | Creado | Import map mínimo para soporte Deno |
+
+### Notas para sesiones futuras
+- **Seguridad garantizada**: API key de Resend nunca expuesta al frontend, vive solo en variables de entorno de Supabase
+- **Dominio de prueba**: Usa `onboarding@resend.dev` por defecto. Para producción real, verificar dominio propio en Resend y configurar `EMAIL_FROM` en env vars
+- **Limitaciones conocidas** (documentadas en cabecera del archivo):
+  - Sin autenticación ni autorización (cualquiera con la URL puede llamar)
+  - Sin rate-limiting (vulnerable a spam si se expone públicamente)
+  - Solo envío de prueba individual, no envíos masivos
+- **Configuración necesaria antes de usar**:
+  1. Obtener API key de Resend (https://resend.com)
+  2. En Supabase Dashboard → Edge Functions → Variables de entorno: añadir `RESEND_API_KEY`
+  3. Deploy: `supabase functions deploy send-test-email`
+- **Cómo probar manualmente** (ver instrucciones detalladas en sección de pruebas del archivo):
+  ```bash
+  curl -X POST https://<project-ref>.supabase.co/functions/v1/send-test-email \
+    -H "Content-Type: application/json" \
+    -d '{"to":"test@ejemplo.com","subject":"Prueba","html":"<p>Hola</p>"}'
+  ```
+- **Próximo bloque lógico**: 
+  - Integrar esta Edge Function con el frontend (reemplazar mocks en `email.js`)
+  - Añadir botón "Avisar a todos" en Panel.jsx que llame a esta función
+  - Implementar autorización (solo profesores autenticados pueden enviar)
+
+---
+
+**Total de sesiones registradas:** 14  
+**Última actualización:** 19 de abril de 2025
