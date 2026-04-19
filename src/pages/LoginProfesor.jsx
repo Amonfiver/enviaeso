@@ -126,104 +126,223 @@ export default function LoginProfesor() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '400px', marginTop: '48px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '8px' }}>
-        {modoRegistro ? 'Crear cuenta' : 'Acceso para profesores'}
-      </h1>
-      <p style={{ textAlign: 'center', color: '#667085', marginBottom: '32px' }}>
-        {modoRegistro
-          ? 'Regístrate para gestionar tus grupos'
-          : 'Inicia sesión para acceder al panel'}
-      </p>
+    <div className="container" style={{ maxWidth: '420px', marginTop: '64px' }}>
+      {/* Logo/Icono y título */}
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            margin: '0 auto 16px',
+            backgroundColor: '#1570ef',
+            borderRadius: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '32px',
+          }}
+        >
+          📚
+        </div>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '8px', color: '#101828' }}>
+          {modoRegistro ? 'Crear cuenta' : 'Acceso para profesores'}
+        </h1>
+        <p style={{ color: '#667085', fontSize: '16px', lineHeight: '1.5' }}>
+          {modoRegistro
+            ? 'Regístrate para gestionar tus grupos y enviar materiales'
+            : 'Inicia sesión para acceder a tu panel de profesor'}
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        {modoRegistro && (
-          <input
-            type="text"
-            placeholder="Tu nombre (cómo te verán los alumnos)"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
+      {/* Card principal */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '32px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
+          border: '1px solid #e4e7ec',
+        }}
+      >
+        <form onSubmit={handleSubmit}>
+          {modoRegistro && (
+            <div style={{ marginBottom: '20px' }}>
+              <label
+                htmlFor="nombre"
+                style={{
+                  display: 'block',
+                  marginBottom: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#344054',
+                }}
+              >
+                Tu nombre
+              </label>
+              <input
+                id="nombre"
+                type="text"
+                placeholder="Cómo te verán tus alumnos"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                disabled={loading}
+                required
+                autoFocus
+              />
+              <p style={{ marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>
+                Este nombre aparecerá en los emails que envíes a tus alumnos.
+              </p>
+            </div>
+          )}
+
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              htmlFor="email"
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#344054',
+              }}
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              htmlFor="password"
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#344054',
+              }}
+            >
+              Contraseña
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Mínimo 6 caracteres"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
             disabled={loading}
-            required
-            autoFocus
-            style={{ marginBottom: '12px' }}
-          />
+            style={{
+              width: '100%',
+              padding: '12px 20px',
+              fontSize: '16px',
+              fontWeight: '600',
+            }}
+          >
+            {loading
+              ? modoRegistro
+                ? 'Creando cuenta...'
+                : 'Iniciando sesión...'
+              : modoRegistro
+              ? 'Crear cuenta'
+              : 'Iniciar sesión'}
+          </button>
+        </form>
+
+        {/* Mensaje de feedback */}
+        {mensaje && (
+          <div
+            style={{
+              marginTop: '20px',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              backgroundColor: tipoMensaje === 'error' ? '#fef2f2' : '#f0fdf4',
+              border: `1px solid ${tipoMensaje === 'error' ? '#fecaca' : '#86efac'}`,
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                textAlign: 'center',
+                color: tipoMensaje === 'error' ? '#b42318' : '#166534',
+                fontWeight: '500',
+                fontSize: '14px',
+              }}
+            >
+              {tipoMensaje === 'error' ? '⚠️ ' : '✓ '}
+              {mensaje}
+            </p>
+          </div>
         )}
 
-        <input
-          type="email"
-          placeholder="tu@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading}
-          required
-          style={{ marginBottom: '12px' }}
-        />
-
-        <input
-          type="password"
-          placeholder="Contraseña (mín. 6 caracteres)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-          required
-          style={{ marginBottom: '16px' }}
-        />
-
-        <button type="submit" disabled={loading} style={{ width: '100%' }}>
-          {loading
-            ? modoRegistro
-              ? 'Creando cuenta...'
-              : 'Iniciando sesión...'
-            : modoRegistro
-            ? 'Crear cuenta'
-            : 'Iniciar sesión'}
-        </button>
-      </form>
-
-      {mensaje && (
-        <p
+        {/* Separador */}
+        <div
           style={{
-            marginTop: '16px',
-            textAlign: 'center',
-            color: tipoMensaje === 'error' ? '#b42318' : '#067647',
-            fontWeight: '500',
+            margin: '24px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
           }}
         >
-          {mensaje}
-        </p>
-      )}
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#e4e7ec' }} />
+          <span style={{ color: '#667085', fontSize: '14px' }}>o</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#e4e7ec' }} />
+        </div>
 
-      <p style={{ marginTop: '24px', textAlign: 'center', color: '#667085' }}>
-        {modoRegistro ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
-        <button
-          type="button"
-          onClick={toggleModo}
-          disabled={loading}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#1570ef',
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            padding: 0,
-            font: 'inherit',
-          }}
-        >
-          {modoRegistro ? 'Inicia sesión' : 'Regístrate'}
-        </button>
-      </p>
+        {/* Toggle modo */}
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: '0 0 8px 0', color: '#667085', fontSize: '14px' }}>
+            {modoRegistro ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
+          </p>
+          <button
+            type="button"
+            onClick={toggleModo}
+            disabled={loading}
+            style={{
+              backgroundColor: '#f9fafb',
+              border: '1px solid #d0d5dd',
+              color: '#344054',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              width: '100%',
+            }}
+          >
+            {modoRegistro ? 'Iniciar sesión' : 'Crear cuenta nueva'}
+          </button>
+        </div>
+      </div>
 
-      <div style={{ marginTop: '32px', textAlign: 'center' }}>
+      {/* Volver al inicio */}
+      <div style={{ marginTop: '24px', textAlign: 'center' }}>
         <a
           href="/"
           style={{
             color: '#667085',
             textDecoration: 'none',
             fontSize: '14px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          ← Volver al inicio
+          <span>←</span> Volver al inicio
         </a>
       </div>
     </div>

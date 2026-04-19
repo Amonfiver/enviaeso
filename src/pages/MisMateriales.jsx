@@ -114,44 +114,85 @@ export default function MisMateriales() {
   // Si no hay datos, mostrar loading mientras redirige
   if (!alumno || !grupo) {
     return (
-      <div className="container">
+      <div className="container" style={{ textAlign: 'center', padding: '48px' }}>
         <p>Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <div style={{ marginBottom: '24px' }}>
-        <h1>Mis materiales</h1>
-        <p style={{ color: '#667085', marginBottom: '4px' }}>
-          Hola, <strong>{alumno.nombre}</strong>.
-        </p>
-        <p style={{ color: '#667085', fontSize: '14px' }}>
-          Grupo: <strong>{grupo.nombre}</strong>
+    <div className="container" style={{ maxWidth: '800px' }}>
+      {/* Header */}
+      <div
+        style={{
+          marginBottom: '32px',
+          padding: '24px',
+          backgroundColor: '#f0fdf4',
+          borderRadius: '16px',
+          border: '1px solid #86efac',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginBottom: '12px',
+          }}
+        >
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              backgroundColor: '#10b981',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+            }}
+          >
+            📚
+          </div>
+          <div>
+            <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '700', color: '#101828' }}>
+              Mis materiales
+            </h1>
+            <p style={{ margin: 0, color: '#667085', fontSize: '14px' }}>
+              Grupo: <strong style={{ color: '#059669' }}>{grupo.nombre}</strong>
+            </p>
+          </div>
+        </div>
+        <p style={{ margin: '0', color: '#344054', fontSize: '16px' }}>
+          Hola, <strong>{alumno.nombre}</strong>. Aquí tienes los materiales compartidos por {grupo.profesorNombre}.
         </p>
       </div>
 
+      {/* Lista de materiales */}
       {loading ? (
-        <p>Cargando materiales...</p>
+        <div style={{ textAlign: 'center', padding: '48px' }}>
+          <p style={{ color: '#667085' }}>Cargando materiales...</p>
+        </div>
       ) : materiales.length === 0 ? (
         <div
           style={{
-            padding: '24px',
+            padding: '48px 24px',
             backgroundColor: '#f9fafb',
-            borderRadius: '12px',
+            borderRadius: '16px',
             textAlign: 'center',
+            border: '1px solid #e4e7ec',
           }}
         >
-          <p style={{ color: '#667085', margin: 0 }}>
-            Aún no hay materiales disponibles en tu grupo.
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+          <p style={{ color: '#344054', fontSize: '18px', fontWeight: '500', margin: '0 0 8px 0' }}>
+            Aún no hay materiales disponibles
           </p>
-          <p style={{ color: '#667085', fontSize: '14px', marginTop: '8px' }}>
-            Vuelve más tarde o contacta a tu profesor.
+          <p style={{ color: '#667085', fontSize: '14px', margin: 0 }}>
+            Vuelve más tarde o contacta a tu profesor si esperabas encontrar algo aquí.
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ display: 'grid', gap: '16px' }}>
           {materiales.map((material) => (
             <div
               key={material.id}
@@ -159,43 +200,67 @@ export default function MisMateriales() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '16px',
+                padding: '20px',
                 backgroundColor: '#ffffff',
-                border: '1px solid #d0d5dd',
+                border: '1px solid #e4e7ec',
                 borderRadius: '12px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div
                   style={{
-                    margin: '0 0 4px 0',
-                    fontWeight: '500',
-                    color: '#344054',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: '#f0f9ff',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px',
+                    flexShrink: 0,
                   }}
                 >
-                  📄 {material.nombre_archivo}
-                </p>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: '13px',
-                    color: '#6b7280',
-                  }}
-                >
-                  {formatearTamaño(material.tamaño_bytes)} • Subido el{' '}
-                  {new Date(material.created_at).toLocaleDateString()}
-                </p>
+                  📄
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p
+                    style={{
+                      margin: '0 0 4px 0',
+                      fontWeight: '500',
+                      color: '#344054',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontSize: '16px',
+                    }}
+                  >
+                    {material.nombre_archivo}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '13px',
+                      color: '#6b7280',
+                    }}
+                  >
+                    {formatearTamaño(material.tamaño_bytes)} • Subido el{' '}
+                    {new Date(material.created_at).toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => handleDescargar(material)}
                 disabled={descargando === material.id}
                 style={{
-                  marginLeft: '12px',
-                  padding: '8px 16px',
+                  marginLeft: '16px',
+                  padding: '10px 20px',
                   fontSize: '14px',
+                  fontWeight: '500',
                   minWidth: 'auto',
                   whiteSpace: 'nowrap',
                 }}
@@ -207,23 +272,82 @@ export default function MisMateriales() {
         </div>
       )}
 
+      {/* Nota de ayuda */}
+      <div
+        style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#fefce8',
+          borderRadius: '8px',
+          border: '1px solid #fde047',
+        }}
+      >
+        <p style={{ margin: 0, fontSize: '13px', color: '#854d0e', lineHeight: '1.5' }}>
+          💡 <strong>Nota:</strong> Si el archivo se abre en el navegador en lugar de descargarse, puedes guardarlo desde esa vista usando Ctrl+S (o Cmd+S en Mac).
+        </p>
+      </div>
+
+      {/* Mensaje de feedback */}
       {mensaje && (
-        <p
+        <div
           style={{
-            marginTop: '16px',
-            color: tipoMensaje === 'error' ? '#b42318' : '#067647',
-            fontWeight: '500',
+            marginTop: '24px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            backgroundColor: tipoMensaje === 'error' ? '#fef2f2' : '#f0fdf4',
+            border: `1px solid ${tipoMensaje === 'error' ? '#fecaca' : '#86efac'}`,
           }}
         >
-          {mensaje}
-        </p>
+          <p
+            style={{
+              margin: 0,
+              textAlign: 'center',
+              color: tipoMensaje === 'error' ? '#b42318' : '#166534',
+              fontWeight: '500',
+              fontSize: '14px',
+            }}
+          >
+            {tipoMensaje === 'error' ? '⚠️ ' : '✓ '}
+            {mensaje}
+          </p>
+        </div>
       )}
 
-      <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #e4e7ec' }}>
+      {/* Footer con botón de salir */}
+      <div
+        style={{
+          marginTop: '32px',
+          paddingTop: '24px',
+          borderTop: '1px solid #e4e7ec',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
+          ¿No es tu grupo?{' '}
+          <button
+            onClick={() => navigate('/acceso-alumno')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#1570ef',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              padding: 0,
+              font: 'inherit',
+              fontWeight: '500',
+            }}
+          >
+            Acceder con otro código
+          </button>
+        </p>
         <button
           onClick={() => navigate('/acceso-alumno')}
           style={{
-            padding: '8px 16px',
+            padding: '10px 20px',
             fontSize: '14px',
             minWidth: 'auto',
             backgroundColor: '#f2f4f7',
@@ -231,7 +355,7 @@ export default function MisMateriales() {
             border: '1px solid #d0d5dd',
           }}
         >
-          ← Salir / Cambiar de grupo
+          ← Salir
         </button>
       </div>
     </div>

@@ -58,6 +58,110 @@ Cada entrada sigue esta estructura:
 
 ---
 
+## 2026-04-19 - Pulido visual y UX de todas las pantallas
+
+**Objetivo:** Hacer que EnviaEso se vea más limpio, claro y profesional sin rediseño extremo, mejorando la experiencia del profesor y del alumno.  
+**Estado:** ✅ Completado
+
+### Cambios realizados
+
+**1. `src/pages/LoginProfesor.jsx` - Acceso profesional:**
+- Añadido header con icono 📚 y mejor jerarquía visual
+- Card principal con sombra y bordes redondeados
+- Labels en todos los inputs con mejor tipografía
+- Separador visual entre login/registro
+- Mensajes de feedback en cajas destacadas con iconos (⚠️ / ✓)
+- Botón toggle más visible y profesional
+- Mejor espaciado y padding consistente
+
+**2. `src/pages/AccesoAlumno.jsx` - Acceso para alumnos:**
+- Header con icono 🎓 y colores distintivos (verde)
+- Card principal con sombra y bordes redondeados
+- Indicador visual cuando hay auto-acceso desde enlace ("🔗 Accediendo...")
+- Labels en todos los inputs
+- Caja de privacidad destacada con icono 🔒 y explicación clara
+- Mejor feedback visual con iconos
+
+**3. `src/pages/MisMateriales.jsx` - Materiales del alumno:**
+- Header mejorado con icono 📚 y saludo personalizado
+- Caja informativa verde con datos del grupo
+- Lista de materiales con iconos 📄 y mejor espaciado
+- Fecha formateada en español ("12 de abril de 2026")
+- Caja de ayuda amarilla con nota sobre descarga (Ctrl+S)
+- Footer mejorado con opción de "Acceder con otro código"
+- Estados vacíos más amigables con iconos grandes
+
+**4. `src/pages/Panel.jsx` - Panel del profesor:**
+- Header completo con icono 👨‍🏫 y caja azul destacada
+- Perfil del profesor editable inline con mejor diseño
+- Mensaje global de feedback con caja destacada
+- Formulario de crear grupo en card blanca con sombra
+- Lista de grupos con mejor jerarquía visual
+- Tarjetas de grupo con sombra, bordes redondeados y mejor organización
+- Badges visuales para conteo de alumnos (azul) y código (gris)
+- Botones de acción con iconos (📋 📨 👥 📦)
+- Sección de alumnos expandible con fondo gris claro
+- Sección de materiales expandible con fondo verde claro
+- Último envío destacado en caja azul
+- Envío grupal en caja amarilla destacada
+- Envío individual con selector mejorado
+
+### Principios aplicados
+- **Jerarquía visual clara:** títulos, subtítulos, labels consistentes
+- **Cards y contenedores:** sombras suaves, bordes redondeados, separación clara
+- **Colores semánticos:** azul para profesor, verde para alumno, amarillo para alertas, rojo para errores
+- **Iconos informativos:** emojis para reconocimiento rápido de funciones
+- **Feedback visual:** mensajes en cajas destacadas con iconos
+- **Espaciado consistente:** padding y margins uniformes
+- **Estados vacíos amigables:** mensajes útiles cuando no hay datos
+- **Mantenida privacidad:** jamás se muestran emails en UI
+
+### Archivos modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/LoginProfesor.jsx` | Modificado | Pulido visual completo, mejor jerarquía, cards, feedback visual |
+| `src/pages/AccesoAlumno.jsx` | Modificado | Pulido visual, header mejorado, caja de privacidad, auto-acceso visual |
+| `src/pages/MisMateriales.jsx` | Modificado | Header mejorado, lista de materiales pulida, caja de ayuda, footer mejorado |
+| `src/pages/Panel.jsx` | Modificado | Rediseño completo del panel, tarjetas mejoradas, secciones expandibles pulidas |
+
+### Cómo probar manualmente cada pantalla
+
+**1. LoginProfesor:**
+- Ir a `/login`
+- Verificar que aparece el icono 📚 y título destacado
+- Probar toggle entre login y registro
+- Verificar que los mensajes de error/éxito aparecen en cajas destacadas
+
+**2. AccesoAlumno:**
+- Ir a `/acceso-alumno`
+- Verificar header con icono 🎓
+- Probar acceso con query params (`?codigo=ABC&email=test@test.com`)
+- Verificar que aparece la caja de privacidad
+- Comprobar mensajes de feedback visual
+
+**3. MisMateriales:**
+- Acceder con un alumno válido
+- Verificar header verde con saludo personalizado
+- Comprobar lista de materiales con iconos
+- Probar descarga y verificar mensaje de ayuda amarillo
+
+**4. Panel:**
+- Iniciar sesión como profesor
+- Verificar header azul con saludo
+- Crear un grupo nuevo
+- Verificar tarjeta del grupo con badges de alumnos y código
+- Probar expandir alumnos y verificar sección con fondo gris
+- Probar expandir materiales y verificar sección con fondo verde
+- Verificar que el último envío aparece en caja azul
+
+### Ajustes pendientes detectados (no implementados en este bloque)
+- Añadir animaciones suaves en transiciones de expandir/colapsar
+- Implementar modo oscuro (dark mode)
+- Añadir tooltips en botones de acción
+- Mejorar experiencia en móvil (algunas tablas pueden necesitar scroll horizontal)
+
+---
+
 ## 2026-04-19 - Fix: Cierre de trazabilidad de envíos - valores de estado correctos
 
 **Objetivo:** Cerrar el fix parcial de trazabilidad. Corregir valores de estado en `envios_alumnos` que seguían violando la constraint `envios_alumnos_estado_check`.  

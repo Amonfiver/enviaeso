@@ -1,32 +1,31 @@
 /**
  * Propósito:
- * Pantalla temporal del panel del profesor para crear, editar, borrar y visualizar grupos.
+ * Pantalla del panel del profesor para crear, editar, borrar y visualizar grupos.
  * Incluye vista de alumnos por grupo respetando privacidad (sin mostrar emails).
  * Muestra contador de alumnos por grupo visible en cada tarjeta.
  * Permite enviar avisos por email a alumnos individuales sin exponer sus direcciones.
+ * Permite enviar avisos a todos los alumnos de un grupo ("Avisar a todos").
  *
  * Alcance:
- * MVP puente sin autenticación real.
+ * Panel profesional para gestión completa de grupos y materiales.
  *
  * Decisiones:
- * - Usa un profesor_id temporal fijo para validar el flujo
- * - Genera un código automáticamente al crear
- * - Lista los grupos ya creados del profesor
+ * - Usa autenticación real de Supabase Auth
+ * - Genera un código automáticamente al crear grupo
+ * - Lista los grupos del profesor autenticado
  * - Permite guardar una nota interna opcional por grupo
  * - Permite editar nombre y nota_interna de grupos existentes
  * - Permite borrar grupos con confirmación
  * - Permite ver alumnos de cada grupo sin exponer emails (solo nombre)
  * - Muestra contador de alumnos visible en cada tarjeta de grupo
- * - Incluye prueba controlada de envío de emails individuales
  * - Permite enviar avisos reales a alumnos seleccionados por nombre (email oculto)
  * - Permite enviar avisos a todos los alumnos de un grupo ("Avisar a todos")
+ * - Trazabilidad completa de envíos en BD
  *
  * Limitaciones:
- * - Aún no hay login oficial
  * - No se permite editar el código de grupo
  * - Vista de alumnos es de solo lectura
  * - El contador de alumnos se carga junto con los grupos (no en tiempo real)
- * - Envío de emails de prueba sin autenticación adicional
  * - Envío grupal secuencial sin rate-limiting avanzado
  * - No hay tracking de aperturas ni descargas
  */
@@ -81,14 +80,14 @@ export default function Panel() {
   // Estado para materiales por grupo
   const [materialesPorGrupo, setMaterialesPorGrupo] = useState({});
   const [loadingMateriales, setLoadingMateriales] = useState({});
-  const [errorMateriales, setErrorMateriales] = useState({}); // Nuevo: errores por grupo
+  const [errorMateriales, setErrorMateriales] = useState({});
   const [subiendoArchivo, setSubiendoArchivo] = useState(null);
   
   // Estado separado para controlar visibilidad de la sección de materiales
   const [grupoMaterialesAbierto, setGrupoMaterialesAbierto] = useState(null);
 
   // Estado para envío de aviso a alumno individual
-  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null); // { id, nombre, email }
+  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState(null);
   const [loadingAvisoAlumno, setLoadingAvisoAlumno] = useState(false);
 
   // Estado para envío de aviso a todos los alumnos de un grupo
@@ -201,8 +200,6 @@ export default function Panel() {
     }
   };
 
-  // Eliminado: ahora se carga en el useEffect que depende de profesor
-
   const handleCrearGrupo = async (e) => {
     e.preventDefault();
 
@@ -245,9 +242,7 @@ export default function Panel() {
         throw error;
       }
 
-      setMensaje(
-        `Grupo creado correctamente. Código generado: ${data.codigo}`
-      );
+      setMensaje(`Grupo creado correctamente. Código: ${data.codigo}`);
       setTipoMensaje('success');
       setNombreGrupo('');
       setNotaInterna('');
@@ -347,14 +342,12 @@ export default function Panel() {
       setMensaje('Grupo borrado correctamente.');
       setTipoMensaje('success');
 
-      // Si estábamos editando este grupo, cancelar edición
       if (grupoEditando === grupo.id) {
         setGrupoEditando(null);
         setEditNombre('');
         setEditNota('');
       }
 
-      // Si teníamos la vista de alumnos de este grupo abierta, limpiarla
       if (grupoAlumnosAbierto === grupo.id) {
         setGrupoAlumnosAbierto(null);
         setAlumnos([]);
@@ -370,10 +363,6 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Copia el código del grupo al portapapeles.
-   * Muestra feedback usando el sistema de mensajes existente.
-   */
   const handleCopiarCodigo = async (codigo) => {
     try {
       await navigator.clipboard.writeText(codigo);
@@ -386,11 +375,6 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Copia un mensaje de invitación listo para enviar a los alumnos.
-   * Incluye instrucciones y el código del grupo.
-   * Muestra feedback usando el sistema de mensajes existente.
-   */
   const handleCopiarInvitacion = async (codigo) => {
     const textoInvitacion = `Hola, entra en enviaeso.com, escribe tu nombre y tu correo, y usa este código de grupo: ${codigo}`;
     try {
@@ -404,14 +388,7 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Carga los alumnos de un grupo específico.
-   * Trae id, nombre y email (uso interno para envío, no se muestra en UI).
-   * También carga el último envío registrado para mostrar trazabilidad.
-   * El email se mantiene en memoria lógica pero nunca se renderiza.
-   */
   const cargarAlumnos = async (grupoId) => {
-    // Si ya está abierto, cerrar
     if (grupoAlumnosAbierto === grupoId) {
       setGrupoAlumnosAbierto(null);
       setAlumnos([]);
@@ -421,10 +398,9 @@ export default function Panel() {
     setGrupoAlumnosAbierto(grupoId);
     setLoadingAlumnos(true);
     setAlumnos([]);
-    setAlumnoSeleccionado(null); // Limpiar selección previa
+    setAlumnoSeleccionado(null);
 
     try {
-      // Cargar alumnos
       const { data, error } = await supabase
         .from('alumnos')
         .select('id, nombre, email')
@@ -436,14 +412,11 @@ export default function Panel() {
       }
 
       setAlumnos(data || []);
-
-      // Cargar último envío para trazabilidad
       await cargarUltimoEnvio(grupoId);
     } catch (error) {
       console.error('Error al cargar alumnos:', error);
       setMensaje('No se pudieron cargar los alumnos.');
       setTipoMensaje('error');
-      // En caso de error, limpiar la vista de alumnos para no insinuar que el grupo está vacío
       setGrupoAlumnosAbierto(null);
       setAlumnos([]);
     } finally {
@@ -451,10 +424,6 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Recarga los alumnos del grupo actualmente abierto (sin toggle).
-   * Usado por el botón de actualización manual.
-   */
   const recargarAlumnosAbierto = async () => {
     if (!grupoAlumnosAbierto) return;
 
@@ -480,38 +449,20 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Actualiza manualmente toda la información del panel:
-   * - Recarga los grupos y contadores
-   * - Si hay una vista de alumnos abierta, la recarga también
-   */
   const handleActualizar = async () => {
     setMensaje('');
     setTipoMensaje('');
-
-    // Recargar grupos y contadores
     await cargarGrupos();
-
-    // Si hay alumnos abiertos, recargarlos también
     if (grupoAlumnosAbierto) {
       await recargarAlumnosAbierto();
     }
-
     setMensaje('Información actualizada.');
     setTipoMensaje('success');
   };
 
-  // ============================================================================
-  // FUNCIONES PARA GESTIÓN DE MATERIALES
-  // ============================================================================
-
-  /**
-   * Carga los materiales de un grupo específico.
-   * Se ejecuta al expandir la sección de materiales.
-   */
   const cargarMateriales = async (grupoId) => {
     setLoadingMateriales((prev) => ({ ...prev, [grupoId]: true }));
-    setErrorMateriales((prev) => ({ ...prev, [grupoId]: null })); // Limpiar error previo
+    setErrorMateriales((prev) => ({ ...prev, [grupoId]: null }));
     
     try {
       const { data, error } = await listarMaterialesPorGrupo(grupoId);
@@ -522,25 +473,16 @@ export default function Panel() {
       console.log(`[Materiales] Cargados ${data?.length || 0} materiales para grupo ${grupoId}`);
     } catch (error) {
       console.error('[Materiales] Error al cargar materiales:', error);
-      console.error('[Materiales] Detalle:', error.message, error.stack);
-      
-      // Guardar error para mostrar inline, pero NO bloquear la UI
       setErrorMateriales((prev) => ({ 
         ...prev, 
         [grupoId]: error.message || 'Error al cargar materiales' 
       }));
-      
-      // Inicializar array vacío para que la sección se muestre igual
       setMaterialesPorGrupo((prev) => ({ ...prev, [grupoId]: [] }));
     } finally {
       setLoadingMateriales((prev) => ({ ...prev, [grupoId]: false }));
     }
   };
 
-  /**
-   * Maneja la selección y subida de un archivo.
-   * Se activa cuando el usuario selecciona un archivo en el input.
-   */
   const handleSubirArchivo = async (grupoId, archivo) => {
     if (!archivo) return;
 
@@ -554,7 +496,6 @@ export default function Panel() {
         throw new Error(error);
       }
 
-      // Actualizar lista de materiales en estado
       setMaterialesPorGrupo((prev) => ({
         ...prev,
         [grupoId]: [data, ...(prev[grupoId] || [])],
@@ -571,10 +512,6 @@ export default function Panel() {
     }
   };
 
-  /**
-   * Elimina un material del grupo.
-   * Pide confirmación antes de eliminar.
-   */
   const handleEliminarMaterial = async (grupoId, material) => {
     const confirmacion = window.confirm(
       `¿Estás seguro de que quieres eliminar "${material.nombre_archivo}"?`
@@ -597,7 +534,6 @@ export default function Panel() {
         throw new Error(error);
       }
 
-      // Actualizar lista de materiales en estado
       setMaterialesPorGrupo((prev) => ({
         ...prev,
         [grupoId]: (prev[grupoId] || []).filter((m) => m.id !== material.id),
@@ -612,15 +548,9 @@ export default function Panel() {
     }
   };
 
-  // Referencias para inputs file (una por grupo)
   const fileInputRefs = useRef({});
 
-  /**
-   * Genera el enlace de acceso para un alumno.
-   * Usa la URL base del frontend (configurable por entorno).
-   */
   const generarEnlaceAcceso = (codigoGrupo, emailAlumno) => {
-    // URL base del frontend - usar variable de entorno o fallback a localhost
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
     const params = new URLSearchParams({
       codigo: codigoGrupo,
@@ -629,9 +559,6 @@ export default function Panel() {
     return `${baseUrl}/acceso-alumno?${params.toString()}`;
   };
 
-  /**
-   * Genera el contenido del email personalizado.
-   */
   const generarContenidoEmail = (nombreAlumno, nombreGrupo, nombreProfesor, codigoGrupo, emailAlumno) => {
     const enlaceAcceso = generarEnlaceAcceso(codigoGrupo, emailAlumno);
     
@@ -671,11 +598,6 @@ Enviado desde EnviaEso • enviaeso.com`;
     return { html, text, enlaceAcceso };
   };
 
-  /**
-   * Envía un aviso real a un alumno específico seleccionado.
-   * Usa el email almacenado internamente (no visible en UI) para enviar el correo.
-   * El profesor nunca ve el email del alumno.
-   */
   const handleEnviarAvisoAlumno = async () => {
     if (!alumnoSeleccionado) {
       setMensaje('Selecciona un alumno primero.');
@@ -683,7 +605,6 @@ Enviado desde EnviaEso • enviaeso.com`;
       return;
     }
 
-    // Obtener datos del grupo actual
     const grupoActual = grupos.find(g => g.id === grupoAlumnosAbierto);
     if (!grupoActual) {
       setMensaje('Error: no se encontró el grupo.');
@@ -714,12 +635,10 @@ Enviado desde EnviaEso • enviaeso.com`;
         text
       });
 
-      // Registrar envío en base de datos (trazabilidad)
       try {
         console.log('[Trazabilidad Individual] Intentando registrar envío...');
         console.log('[Trazabilidad Individual] Éxito del envío:', resultado.success);
         
-        // 1. Crear registro en envios
         const { data: envioCreado, error: envioError } = await supabase
           .from('envios')
           .insert({
@@ -737,8 +656,6 @@ Enviado desde EnviaEso • enviaeso.com`;
 
         console.log('[Trazabilidad Individual] Envío creado con ID:', envioCreado?.id);
 
-        // 2. Registrar en envios_alumnos - usando valores en español según documentación
-        // FIX: La constraint 'envios_alumnos_estado_check' espera 'enviado' o 'error'
         const estadoValor = resultado.success ? 'enviado' : 'error';
         console.log('[Trazabilidad Individual] Valor de estado a insertar:', estadoValor);
         
@@ -752,16 +669,12 @@ Enviado desde EnviaEso • enviaeso.com`;
 
         if (destinatarioError) {
           console.error('[Trazabilidad Individual] Error al insertar en envios_alumnos:', destinatarioError);
-          console.error('[Trazabilidad Individual] Código:', destinatarioError.code);
-          console.error('[Trazabilidad Individual] Mensaje:', destinatarioError.message);
-          console.error('[Trazabilidad Individual] Detalles:', destinatarioError.details);
           throw destinatarioError;
         }
 
         trazabilidadOk = true;
         console.log('[Trazabilidad Individual] ✓ Registrado correctamente');
         
-        // Actualizar UI con último envío
         await cargarUltimoEnvio(grupoAlumnosAbierto);
       } catch (errorTraz) {
         errorTrazabilidad = errorTraz;
@@ -771,7 +684,7 @@ Enviado desde EnviaEso • enviaeso.com`;
       if (resultado.success) {
         setMensaje(`Aviso enviado correctamente a ${alumnoSeleccionado.nombre}. ID: ${resultado.messageId}${trazabilidadOk ? ' ✓ Registrado en BD.' : ' ⚠️ Error al registrar en BD.'}`);
         setTipoMensaje('success');
-        setAlumnoSeleccionado(null); // Deseleccionar después de enviar
+        setAlumnoSeleccionado(null);
       } else {
         setMensaje(`Error al enviar aviso: ${resultado.error}${errorTrazabilidad ? ' | Error BD: ' + errorTrazabilidad.message : ''}`);
         setTipoMensaje('error');
@@ -781,20 +694,14 @@ Enviado desde EnviaEso • enviaeso.com`;
       setMensaje('Error inesperado al enviar el aviso. Inténtalo de nuevo.');
       setTipoMensaje('error');
     } finally {
-      // SIEMPRE resetear el loading, incluso si hay error
       setLoadingAvisoAlumno(false);
     }
   };
 
-  /**
-   * Carga el último envío registrado para un grupo específico.
-   * Usado para mostrar resumen de trazabilidad en la UI.
-   */
   const cargarUltimoEnvio = async (grupoId) => {
     try {
       console.log(`[Trazabilidad] Cargando último envío para grupo ${grupoId}...`);
       
-      // Obtener el último envío del grupo
       const { data: envioData, error: envioError } = await supabase
         .from('envios')
         .select('id, fecha_envio, descripcion_opcional')
@@ -808,8 +715,6 @@ Enviado desde EnviaEso • enviaeso.com`;
           console.log(`[Trazabilidad] No hay envíos registrados para grupo ${grupoId}`);
         } else {
           console.error('[Trazabilidad] Error al cargar último envío:', envioError);
-          console.error('[Trazabilidad] Código:', envioError.code, 'Mensaje:', envioError.message);
-          if (envioError.details) console.error('[Trazabilidad] Detalles:', envioError.details);
         }
         setUltimoEnvioGrupo((prev) => ({ ...prev, [grupoId]: null }));
         return;
@@ -817,7 +722,6 @@ Enviado desde EnviaEso • enviaeso.com`;
 
       console.log(`[Trazabilidad] Último envío encontrado: ${envioData.id}`);
 
-      // Contar destinatarios del envío
       const { count: totalDestinatarios, error: countError } = await supabase
         .from('envios_alumnos')
         .select('*', { count: 'exact', head: true })
@@ -825,9 +729,6 @@ Enviado desde EnviaEso • enviaeso.com`;
 
       if (countError) {
         console.error('[Trazabilidad] Error al contar destinatarios:', countError);
-        console.error('[Trazabilidad] Código:', countError.code, 'Mensaje:', countError.message);
-      } else {
-        console.log(`[Trazabilidad] Destinatarios contados: ${totalDestinatarios || 0}`);
       }
 
       setUltimoEnvioGrupo((prev) => ({
@@ -843,14 +744,6 @@ Enviado desde EnviaEso • enviaeso.com`;
     }
   };
 
-  /**
-   * Envía un aviso a todos los alumnos del grupo actualmente visible.
-   * Pide confirmación previa indicando cuántos alumnos recibirán el aviso.
-   * Envío secuencial con pausa breve entre cada email para no saturar.
-   * Registra el envío en tablas envios y envios_alumnos.
-   * Muestra resumen al finalizar: total, enviados, errores.
-   * Los emails nunca se muestran en pantalla, solo los nombres.
-   */
   const handleAvisarATodos = async () => {
     if (alumnos.length === 0) {
       setMensaje('No hay alumnos en este grupo para enviar avisos.');
@@ -858,7 +751,6 @@ Enviado desde EnviaEso • enviaeso.com`;
       return;
     }
 
-    // Obtener datos del grupo actual
     const grupoActual = grupos.find(g => g.id === grupoAlumnosAbierto);
     if (!grupoActual) {
       setMensaje('Error: no se encontró el grupo.');
@@ -866,7 +758,6 @@ Enviado desde EnviaEso • enviaeso.com`;
       return;
     }
 
-    // Confirmación previa
     const confirmacion = window.confirm(
       `¿Estás seguro de que quieres enviar un aviso a todos los alumnos de este grupo?\n\n` +
       `Grupo: ${grupoActual.nombre}\n` +
@@ -885,9 +776,8 @@ Enviado desde EnviaEso • enviaeso.com`;
     let enviados = 0;
     let errores = 0;
     const erroresDetalle = [];
-    const resultadosPorAlumno = []; // Para registrar en envios_alumnos
+    const resultadosPorAlumno = [];
 
-    // Envío secuencial con pausa breve entre cada email
     for (const alumno of alumnos) {
       try {
         const { html, text } = generarContenidoEmail(
@@ -916,10 +806,8 @@ Enviado desde EnviaEso • enviaeso.com`;
         } else {
           errores++;
           erroresDetalle.push(`${alumno.nombre}: ${resultado.error}`);
-          console.error(`Error al enviar a ${alumno.nombre}:`, resultado.error);
         }
 
-        // Pausa breve de 300ms entre envíos para no saturar Resend
         if (alumnos.indexOf(alumno) < alumnos.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
@@ -931,23 +819,15 @@ Enviado desde EnviaEso • enviaeso.com`;
           error: error.message,
         });
         erroresDetalle.push(`${alumno.nombre}: ${error.message}`);
-        console.error(`Error inesperado al enviar a ${alumno.nombre}:`, error);
       }
     }
 
-    // Registrar el envío en base de datos
     let trazabilidadOk = false;
     let errorTrazabilidad = null;
     
     try {
       const grupoId = grupoAlumnosAbierto;
       
-      console.log('[Trazabilidad] Iniciando registro en BD...');
-      console.log('[Trazabilidad] Grupo ID:', grupoId);
-      console.log('[Trazabilidad] Resultados a registrar:', resultadosPorAlumno.length);
-      
-      // 1. Crear registro en envios
-      console.log('[Trazabilidad] Insertando en tabla envios...');
       const { data: envioCreado, error: envioError } = await supabase
         .from('envios')
         .insert({
@@ -959,72 +839,43 @@ Enviado desde EnviaEso • enviaeso.com`;
         .single();
 
       if (envioError) {
-        console.error('[Trazabilidad] Error al insertar en envios:', envioError);
-        console.error('[Trazabilidad] Código:', envioError.code);
-        console.error('[Trazabilidad] Mensaje:', envioError.message);
-        if (envioError.details) console.error('[Trazabilidad] Detalles:', envioError.details);
-        if (envioError.hint) console.error('[Trazabilidad] Hint:', envioError.hint);
-        throw new Error(`Error en tabla envios: ${envioError.message} (código: ${envioError.code})`);
+        throw new Error(`Error en tabla envios: ${envioError.message}`);
       }
 
-      console.log('[Trazabilidad] Envío creado con ID:', envioCreado?.id);
+      const registrosAlumnos = resultadosPorAlumno.map((resultado) => ({
+        envio_id: envioCreado.id,
+        alumno_id: resultado.alumnoId,
+        estado: resultado.exito ? 'enviado' : 'error',
+      }));
 
-      // 2. Registrar destinatarios en envios_alumnos
-      // FIX: La constraint 'envios_alumnos_estado_check' espera 'enviado' o 'error'
-      const registrosAlumnos = resultadosPorAlumno.map((resultado) => {
-        const estadoValor = resultado.exito ? 'enviado' : 'error';
-        console.log('[Trazabilidad] Estado para alumno', resultado.alumnoId, ':', estadoValor);
-        return {
-          envio_id: envioCreado.id,
-          alumno_id: resultado.alumnoId,
-          estado: estadoValor,
-        };
-      });
-
-      console.log('[Trazabilidad] Insertando en envios_alumnos:', registrosAlumnos.length, 'registros');
-      console.log('[Trazabilidad] Valores de estado a insertar:', registrosAlumnos.map(r => r.estado));
-      
-      const { data: destinatariosData, error: destinatariosError } = await supabase
+      const { error: destinatariosError } = await supabase
         .from('envios_alumnos')
-        .insert(registrosAlumnos)
-        .select();
+        .insert(registrosAlumnos);
 
       if (destinatariosError) {
-        console.error('[Trazabilidad] Error al insertar en envios_alumnos:', destinatariosError);
-        console.error('[Trazabilidad] Código:', destinatariosError.code);
-        console.error('[Trazabilidad] Mensaje:', destinatariosError.message);
-        if (destinatariosError.details) console.error('[Trazabilidad] Detalles:', destinatariosError.details);
-        throw new Error(`Error en tabla envios_alumnos: ${destinatariosError.message} (código: ${destinatariosError.code})`);
+        throw new Error(`Error en tabla envios_alumnos: ${destinatariosError.message}`);
       }
 
-      console.log('[Trazabilidad] Destinatarios registrados:', destinatariosData?.length || 0);
-
-      // 3. Actualizar estado local con el último envío
       await cargarUltimoEnvio(grupoId);
       
       trazabilidadOk = true;
-      console.log(`[Trazabilidad] ✓ Envío ${envioCreado.id} registrado correctamente con ${registrosAlumnos.length} destinatarios`);
     } catch (error) {
       errorTrazabilidad = error;
-      console.error('[Trazabilidad] ✗ Error al registrar envío en base de datos:', error);
+      console.error('[Trazabilidad] Error:', error);
     } finally {
-      // SIEMPRE resetear el loading, incluso si hay error en trazabilidad
       setLoadingAvisarATodos(false);
     }
 
-    // Resumen final
     let mensajeResumen = `Envío completado: ${enviados} enviado${enviados !== 1 ? 's' : ''}`;
     if (errores > 0) {
       mensajeResumen += `, ${errores} error${errores !== 1 ? 'es' : ''}`;
-      console.error('Detalle de errores de email:', erroresDetalle);
     }
     mensajeResumen += ` de ${alumnos.length} total.`;
     
-    // Añadir estado de trazabilidad al mensaje
     if (trazabilidadOk) {
       mensajeResumen += ' ✓ Registrado en BD.';
     } else if (errorTrazabilidad) {
-      mensajeResumen += ' ⚠️ ERROR al registrar en BD: ' + errorTrazabilidad.message;
+      mensajeResumen += ' ⚠️ Error al registrar en BD.';
     }
 
     setMensaje(mensajeResumen);
@@ -1038,27 +889,18 @@ Enviado desde EnviaEso • enviaeso.com`;
     }
   };
 
-  /**
-   * Activa el modo edición de perfil
-   */
   const handleEditarPerfil = () => {
     setNombreEditado(profesor?.nombre || '');
     setEditandoPerfil(true);
     setErrorPerfil(null);
   };
 
-  /**
-   * Cancela la edición de perfil
-   */
   const handleCancelarEdicionPerfil = () => {
     setEditandoPerfil(false);
     setNombreEditado('');
     setErrorPerfil(null);
   };
 
-  /**
-   * Guarda los cambios del perfil del profesor
-   */
   const handleGuardarPerfil = async () => {
     const nombreNormalizado = nombreEditado.trim();
     
@@ -1076,9 +918,7 @@ Enviado desde EnviaEso • enviaeso.com`;
 
     if (error) {
       setErrorPerfil('No se pudo guardar el perfil. Inténtalo de nuevo.');
-      console.error('[Panel] Error al guardar perfil:', error);
     } else {
-      // Actualizar el estado local con el nuevo nombre
       setProfesor((prev) => ({ ...prev, nombre: data.nombre }));
       setEditandoPerfil(false);
       setMensaje('Perfil actualizado correctamente.');
@@ -1088,19 +928,17 @@ Enviado desde EnviaEso • enviaeso.com`;
     setGuardandoPerfil(false);
   };
 
-  // Mostrar loading mientras verificamos autenticación
   if (loadingAuth) {
     return (
-      <div className="container">
+      <div className="container" style={{ textAlign: 'center', padding: '48px' }}>
         <p>Cargando...</p>
       </div>
     );
   }
 
-  // Si hay error crítico de perfil, mostrar mensaje
   if (errorPerfil && !profesor) {
     return (
-      <div className="container">
+      <div className="container" style={{ textAlign: 'center', padding: '48px' }}>
         <h1>Error al cargar perfil</h1>
         <p style={{ color: '#b42318' }}>{errorPerfil}</p>
         <button onClick={handleLogout} style={{ marginTop: '16px' }}>
@@ -1111,146 +949,268 @@ Enviado desde EnviaEso • enviaeso.com`;
   }
 
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ flex: 1 }}>
-          <h1>Panel del profesor</h1>
-          {editandoPerfil ? (
-            // Modo edición de perfil
-            <div style={{ marginTop: '8px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
-              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0369a1' }}>
-                Editando tu perfil:
-              </p>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={nombreEditado}
-                  onChange={(e) => setNombreEditado(e.target.value)}
-                  placeholder="Tu nombre"
-                  disabled={guardandoPerfil}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid #d0d5dd',
-                    fontSize: '14px',
-                    minWidth: '200px',
-                  }}
-                />
-                <button
-                  onClick={handleGuardarPerfil}
-                  disabled={guardandoPerfil}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    minWidth: 'auto',
-                  }}
-                >
-                  {guardandoPerfil ? 'Guardando...' : 'Guardar'}
-                </button>
-                <button
-                  onClick={handleCancelarEdicionPerfil}
-                  disabled={guardandoPerfil}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    minWidth: 'auto',
-                    backgroundColor: '#f2f4f7',
-                    color: '#344054',
-                  }}
-                >
-                  Cancelar
-                </button>
+    <div className="container" style={{ maxWidth: '900px' }}>
+      {/* Header */}
+      <div
+        style={{
+          marginBottom: '32px',
+          padding: '24px',
+          backgroundColor: '#f0f9ff',
+          borderRadius: '16px',
+          border: '1px solid #bae6fd',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '8px',
+              }}
+            >
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  backgroundColor: '#1570ef',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                }}
+              >
+                👨‍🏫
               </div>
-              {errorPerfil && (
-                <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#b42318' }}>
-                  {errorPerfil}
+              <div>
+                <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '700', color: '#101828' }}>
+                  Panel del profesor
+                </h1>
+                <p style={{ margin: 0, color: '#667085', fontSize: '14px' }}>
+                  Gestiona tus grupos y materiales
                 </p>
-              )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '10px 20px',
+              fontSize: '14px',
+              minWidth: 'auto',
+              backgroundColor: '#ffffff',
+              color: '#344054',
+              border: '1px solid #d0d5dd',
+            }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+
+        {/* Saludo y perfil */}
+        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #bae6fd' }}>
+          {editandoPerfil ? (
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="text"
+                value={nombreEditado}
+                onChange={(e) => setNombreEditado(e.target.value)}
+                placeholder="Tu nombre"
+                disabled={guardandoPerfil}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #d0d5dd',
+                  fontSize: '14px',
+                  minWidth: '200px',
+                }}
+              />
+              <button
+                onClick={handleGuardarPerfil}
+                disabled={guardandoPerfil}
+                style={{ padding: '10px 20px', fontSize: '14px' }}
+              >
+                {guardandoPerfil ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                onClick={handleCancelarEdicionPerfil}
+                disabled={guardandoPerfil}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  backgroundColor: '#f2f4f7',
+                  color: '#344054',
+                }}
+              >
+                Cancelar
+              </button>
             </div>
           ) : (
-            // Modo visualización normal
-            <p>
-              {profesor?.nombre 
-                ? `Hola, ${profesor.nombre}. ` 
-                : 'Bienvenido. '}
-              Crea un grupo y obtén un código para compartir con tus alumnos.
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <p style={{ margin: 0, color: '#344054', fontSize: '16px' }}>
+                {profesor?.nombre ? (
+                  <>
+                    Hola, <strong>{profesor.nombre}</strong>. Bienvenido a tu panel.
+                  </>
+                ) : (
+                  'Bienvenido. Completa tu perfil para personalizar los emails.'
+                )}
+              </p>
               <button
                 onClick={handleEditarPerfil}
                 style={{
-                  marginLeft: '8px',
-                  padding: '2px 8px',
-                  fontSize: '12px',
+                  padding: '6px 14px',
+                  fontSize: '13px',
                   minWidth: 'auto',
                   backgroundColor: 'transparent',
                   color: '#1570ef',
                   border: '1px solid #1570ef',
-                  borderRadius: '4px',
+                  borderRadius: '6px',
                   cursor: 'pointer',
                 }}
               >
                 {profesor?.nombre ? 'Editar perfil' : 'Completar perfil'}
               </button>
+            </div>
+          )}
+          {errorPerfil && (
+            <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#b42318' }}>
+              {errorPerfil}
             </p>
           )}
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            fontSize: '14px',
-            minWidth: 'auto',
-            backgroundColor: '#f2f4f7',
-            color: '#344054',
-            border: '1px solid #d0d5dd',
-          }}
-        >
-          Cerrar sesión
-        </button>
       </div>
 
-      <form onSubmit={handleCrearGrupo}>
-        <input
-          type="text"
-          placeholder="Nombre del grupo"
-          value={nombreGrupo}
-          onChange={(e) => setNombreGrupo(e.target.value)}
-          required
-        />
-
-        <textarea
-          placeholder="Nota interna opcional (ej. Curso en Castellón por la tarde, pendiente enviar convenio y presentación...)"
-          value={notaInterna}
-          onChange={(e) => setNotaInterna(e.target.value)}
-          rows={4}
-          style={{
-            width: '100%',
-            marginTop: '12px',
-            padding: '12px 14px',
-            borderRadius: '12px',
-            border: '1px solid #d0d5dd',
-            resize: 'vertical',
-            font: 'inherit',
-          }}
-        />
-
-        <button type="submit" disabled={loading} style={{ marginTop: '12px' }}>
-          {loading ? 'Creando grupo...' : 'Crear grupo'}
-        </button>
-      </form>
-
+      {/* Mensaje de feedback global */}
       {mensaje && (
-        <p
+        <div
           style={{
-            marginTop: '16px',
-            color: tipoMensaje === 'error' ? '#b42318' : '#067647',
-            fontWeight: '600',
+            marginBottom: '24px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            backgroundColor: tipoMensaje === 'error' ? '#fef2f2' : '#f0fdf4',
+            border: `1px solid ${tipoMensaje === 'error' ? '#fecaca' : '#86efac'}`,
           }}
         >
-          {mensaje}
-        </p>
+          <p
+            style={{
+              margin: 0,
+              color: tipoMensaje === 'error' ? '#b42318' : '#166534',
+              fontWeight: '500',
+              fontSize: '14px',
+            }}
+          >
+            {tipoMensaje === 'error' ? '⚠️ ' : '✓ '}
+            {mensaje}
+          </p>
+        </div>
       )}
 
-      <section style={{ marginTop: '24px' }}>
+      {/* Formulario crear grupo */}
+      <div
+        style={{
+          marginBottom: '32px',
+          padding: '24px',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e4e7ec',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#101828' }}>
+          Crear nuevo grupo
+        </h2>
+        <p style={{ margin: '0 0 20px 0', color: '#667085', fontSize: '14px' }}>
+          Crea un grupo para tus alumnos. Se generará un código único automáticamente.
+        </p>
+
+        <form onSubmit={handleCrearGrupo}>
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="nombreGrupo"
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#344054',
+              }}
+            >
+              Nombre del grupo
+            </label>
+            <input
+              id="nombreGrupo"
+              type="text"
+              placeholder="Ej: 2º Bachillerato - Matemáticas"
+              value={nombreGrupo}
+              onChange={(e) => setNombreGrupo(e.target.value)}
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              htmlFor="notaInterna"
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#344054',
+              }}
+            >
+              Nota interna <span style={{ color: '#667085', fontWeight: '400' }}>(opcional)</span>
+            </label>
+            <textarea
+              id="notaInterna"
+              placeholder="Notas para ti sobre este grupo..."
+              value={notaInterna}
+              onChange={(e) => setNotaInterna(e.target.value)}
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                border: '1px solid #d0d5dd',
+                resize: 'vertical',
+                font: 'inherit',
+              }}
+            />
+          </div>
+
+          <button type="submit" disabled={loading} style={{ padding: '12px 24px' }}>
+            {loading ? 'Creando grupo...' : 'Crear grupo'}
+          </button>
+        </form>
+      </div>
+
+      {/* Lista de grupos */}
+      <section>
         <div
           style={{
             display: 'flex',
@@ -1258,574 +1218,709 @@ Enviado desde EnviaEso • enviaeso.com`;
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: '12px',
-            marginBottom: '16px',
+            marginBottom: '20px',
           }}
         >
-          <h2 style={{ margin: 0 }}>Tus grupos</h2>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#101828' }}>
+            Tus grupos
+          </h2>
           <button
             onClick={handleActualizar}
             disabled={loadingGrupos}
             style={{
-              padding: '8px 16px',
+              padding: '10px 20px',
               fontSize: '14px',
               minWidth: 'auto',
-              backgroundColor: '#f2f4f7',
+              backgroundColor: '#f9fafb',
               color: '#344054',
               border: '1px solid #d0d5dd',
             }}
           >
-            {loadingGrupos ? 'Actualizando...' : 'Actualizar'}
+            {loadingGrupos ? 'Actualizando...' : '↻ Actualizar'}
           </button>
         </div>
 
         {loadingGrupos ? (
-          <p>Cargando grupos...</p>
+          <div style={{ textAlign: 'center', padding: '48px' }}>
+            <p style={{ color: '#667085' }}>Cargando grupos...</p>
+          </div>
         ) : grupos.length === 0 ? (
-          <p>Aún no has creado grupos.</p>
+          <div
+            style={{
+              padding: '48px 24px',
+              backgroundColor: '#f9fafb',
+              borderRadius: '16px',
+              textAlign: 'center',
+              border: '1px solid #e4e7ec',
+            }}
+          >
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📚</div>
+            <p style={{ color: '#344054', fontSize: '18px', fontWeight: '500', margin: '0 0 8px 0' }}>
+              Aún no tienes grupos
+            </p>
+            <p style={{ color: '#667085', fontSize: '14px', margin: 0 }}>
+              Crea tu primer grupo arriba para empezar.
+            </p>
+          </div>
         ) : (
-          <div style={{ display: 'grid', gap: '12px', marginTop: '16px' }}>
+          <div style={{ display: 'grid', gap: '16px' }}>
             {grupos.map((grupo) => (
               <div
                 key={grupo.id}
                 style={{
-                  border: '1px solid #d0d5dd',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  background: '#ffffff',
-                  borderLeft:
-                    grupoEditando === grupo.id ? '4px solid #1570ef' : undefined,
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  border: '1px solid #e4e7ec',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                  overflow: 'hidden',
                 }}
               >
-                {grupoEditando === grupo.id ? (
-                  // Modo edición
-                  <>
-                    <input
-                      type="text"
-                      value={editNombre}
-                      onChange={(e) => setEditNombre(e.target.value)}
-                      placeholder="Nombre del grupo"
-                      style={{
-                        width: '100%',
-                        marginBottom: '8px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #d0d5dd',
-                        font: 'inherit',
-                        fontWeight: '600',
-                      }}
-                    />
-
-                    <textarea
-                      value={editNota}
-                      onChange={(e) => setEditNota(e.target.value)}
-                      placeholder="Nota interna opcional"
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        marginBottom: '12px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #d0d5dd',
-                        resize: 'vertical',
-                        font: 'inherit',
-                      }}
-                    />
-
-                    <p
-                      style={{
-                        margin: '0 0 12px 0',
-                        color: '#667085',
-                        fontSize: '14px',
-                      }}
-                    >
-                      <strong>Código:</strong> {grupo.codigo}{' '}
-                      <em>(no editable)</em>
-                    </p>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: '8px',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <button
-                        onClick={() => handleGuardarEdicion(grupo.id)}
-                        disabled={loadingEdicion}
-                        style={{
-                          padding: '8px 16px',
-                          fontSize: '14px',
-                        }}
-                      >
-                        {loadingEdicion ? 'Guardando...' : 'Guardar'}
-                      </button>
-
-                      <button
-                        onClick={handleCancelarEdicion}
-                        disabled={loadingEdicion}
-                        style={{
-                          padding: '8px 16px',
-                          fontSize: '14px',
-                          backgroundColor: '#f2f4f7',
-                          color: '#344054',
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  // Modo visualización
-                  <>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: '12px',
-                      }}
-                    >
-                      <h3 style={{ margin: '0 0 8px 0' }}>{grupo.nombre}</h3>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <button
-                          onClick={() => handleEditarClick(grupo)}
-                          disabled={loadingBorrado === grupo.id}
+                {/* Header de la tarjeta */}
+                <div
+                  style={{
+                    padding: '20px',
+                    backgroundColor: grupoEditando === grupo.id ? '#f0f9ff' : '#ffffff',
+                    borderLeft: grupoEditando === grupo.id ? '4px solid #1570ef' : 'none',
+                  }}
+                >
+                  {grupoEditando === grupo.id ? (
+                    // Modo edición
+                    <div>
+                      <div style={{ marginBottom: '12px' }}>
+                        <label
                           style={{
-                            padding: '6px 12px',
+                            display: 'block',
+                            marginBottom: '4px',
                             fontSize: '13px',
-                            minWidth: 'auto',
+                            fontWeight: '500',
+                            color: '#344054',
                           }}
                         >
-                          Editar
+                          Nombre
+                        </label>
+                        <input
+                          type="text"
+                          value={editNombre}
+                          onChange={(e) => setEditNombre(e.target.value)}
+                          placeholder="Nombre del grupo"
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: '1px solid #d0d5dd',
+                            font: 'inherit',
+                            fontWeight: '500',
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: '16px' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '4px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            color: '#344054',
+                          }}
+                        >
+                          Nota interna
+                        </label>
+                        <textarea
+                          value={editNota}
+                          onChange={(e) => setEditNota(e.target.value)}
+                          placeholder="Nota interna opcional"
+                          rows={2}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: '1px solid #d0d5dd',
+                            resize: 'vertical',
+                            font: 'inherit',
+                          }}
+                        />
+                      </div>
+
+                      <p
+                        style={{
+                          margin: '0 0 16px 0',
+                          color: '#667085',
+                          fontSize: '14px',
+                        }}
+                      >
+                        <strong>Código:</strong>{' '}
+                        <code
+                          style={{
+                            backgroundColor: '#f2f4f7',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          {grupo.codigo}
+                        </code>
+                      </p>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => handleGuardarEdicion(grupo.id)}
+                          disabled={loadingEdicion}
+                          style={{ padding: '10px 20px', fontSize: '14px' }}
+                        >
+                          {loadingEdicion ? 'Guardando...' : 'Guardar cambios'}
                         </button>
-
                         <button
-                          onClick={() => handleBorrarGrupo(grupo)}
-                          disabled={loadingBorrado === grupo.id}
+                          onClick={handleCancelarEdicion}
+                          disabled={loadingEdicion}
                           style={{
-                            padding: '6px 12px',
-                            fontSize: '13px',
-                            minWidth: 'auto',
-                            backgroundColor: '#fef3f2',
-                            color: '#b42318',
-                            border: '1px solid #fda29b',
+                            padding: '10px 20px',
+                            fontSize: '14px',
+                            backgroundColor: '#f2f4f7',
+                            color: '#344054',
                           }}
                         >
-                          {loadingBorrado === grupo.id
-                            ? 'Borrando...'
-                            : 'Borrar'}
+                          Cancelar
                         </button>
                       </div>
                     </div>
-
-                    <p style={{ margin: '0 0 4px 0' }}>
-                      <strong>Código:</strong> {grupo.codigo}{' '}
-                      <button
-                        onClick={() => handleCopiarCodigo(grupo.codigo)}
-                        disabled={loadingBorrado === grupo.id}
-                        style={{
-                          padding: '2px 8px',
-                          fontSize: '12px',
-                          minWidth: 'auto',
-                          backgroundColor: '#f2f4f7',
-                          color: '#344054',
-                          border: '1px solid #d0d5dd',
-                          borderRadius: '6px',
-                          marginLeft: '4px',
-                        }}
-                      >
-                        Copiar código
-                      </button>
-                      <button
-                        onClick={() => handleCopiarInvitacion(grupo.codigo)}
-                        disabled={loadingBorrado === grupo.id}
-                        style={{
-                          padding: '2px 8px',
-                          fontSize: '12px',
-                          minWidth: 'auto',
-                          backgroundColor: '#e0f2fe',
-                          color: '#0369a1',
-                          border: '1px solid #7dd3fc',
-                          borderRadius: '6px',
-                          marginLeft: '8px',
-                        }}
-                      >
-                        Copiar invitación
-                      </button>
-                    </p>
-
-                    <p style={{ margin: '4px 0 8px 0', color: '#667085', fontSize: '14px' }}>
-                      {conteoAlumnos[grupo.id] || 0} alumno{(conteoAlumnos[grupo.id] || 0) !== 1 ? 's' : ''}
-                    </p>
-
-                    {grupo.nota_interna && (
-                      <p
-                        style={{
-                          margin: '8px 0 8px 0',
-                          color: '#344054',
-                          whiteSpace: 'pre-wrap',
-                        }}
-                      >
-                        <strong>Nota:</strong> {grupo.nota_interna}
-                      </p>
-                    )}
-
-                    <p
-                      style={{ margin: '12px 0 0 0', color: '#667085', fontSize: '14px' }}
-                    >
-                      Creado: {new Date(grupo.created_at).toLocaleString()}
-                    </p>
-
-                    {/* Botón Ver alumnos */}
-                    <button
-                      onClick={() => cargarAlumnos(grupo.id)}
-                      disabled={loadingBorrado === grupo.id}
-                      style={{
-                        marginTop: '12px',
-                        padding: '6px 12px',
-                        fontSize: '13px',
-                        minWidth: 'auto',
-                        backgroundColor: '#f9fafb',
-                        color: '#344054',
-                        border: '1px solid #d0d5dd',
-                      }}
-                    >
-                      {grupoAlumnosAbierto === grupo.id ? 'Ocultar alumnos' : 'Ver alumnos'}
-                    </button>
-
-                    {/* Sección expandible de alumnos */}
-                    {grupoAlumnosAbierto === grupo.id && (
+                  ) : (
+                    // Modo visualización
+                    <div>
                       <div
                         style={{
-                          marginTop: '12px',
-                          padding: '12px',
-                          backgroundColor: '#f9fafb',
-                          borderRadius: '8px',
-                          border: '1px solid #e4e7ec',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          flexWrap: 'wrap',
                         }}
                       >
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#344054' }}>
-                          Alumnos de {grupo.nombre}
-                        </h4>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3
+                            style={{
+                              margin: '0 0 8px 0',
+                              fontSize: '18px',
+                              fontWeight: '600',
+                              color: '#101828',
+                            }}
+                          >
+                            {grupo.nombre}
+                          </h3>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              flexWrap: 'wrap',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            <span
+                              style={{
+                                backgroundColor: '#f0f9ff',
+                                color: '#0369a1',
+                                padding: '4px 10px',
+                                borderRadius: '20px',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                              }}
+                            >
+                              {conteoAlumnos[grupo.id] || 0} alumno{(conteoAlumnos[grupo.id] || 0) !== 1 ? 's' : ''}
+                            </span>
+                            <code
+                              style={{
+                                backgroundColor: '#f2f4f7',
+                                color: '#344054',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                              }}
+                            >
+                              Código: {grupo.codigo}
+                            </code>
+                          </div>
+                          {grupo.nota_interna && (
+                            <p
+                              style={{
+                                margin: '8px 0 0 0',
+                                color: '#667085',
+                                fontSize: '14px',
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              📝 {grupo.nota_interna}
+                            </p>
+                          )}
+                        </div>
 
-                        {loadingAlumnos ? (
-                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
-                            Cargando alumnos...
-                          </p>
-                        ) : alumnos.length === 0 ? (
-                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
-                            Aún no hay alumnos en este grupo.
-                          </p>
-                        ) : (
-                          <>
+                        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleEditarClick(grupo)}
+                            disabled={loadingBorrado === grupo.id}
+                            style={{
+                              padding: '8px 16px',
+                              fontSize: '13px',
+                              minWidth: 'auto',
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleBorrarGrupo(grupo)}
+                            disabled={loadingBorrado === grupo.id}
+                            style={{
+                              padding: '8px 16px',
+                              fontSize: '13px',
+                              minWidth: 'auto',
+                              backgroundColor: '#fef3f2',
+                              color: '#b42318',
+                              border: '1px solid #fda29b',
+                            }}
+                          >
+                            {loadingBorrado === grupo.id ? 'Borrando...' : 'Borrar'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Botones de acción */}
+                      <div
+                        style={{
+                          marginTop: '16px',
+                          paddingTop: '16px',
+                          borderTop: '1px solid #e4e7ec',
+                          display: 'flex',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <button
+                          onClick={() => handleCopiarCodigo(grupo.codigo)}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: '#f2f4f7',
+                            color: '#344054',
+                            border: '1px solid #d0d5dd',
+                          }}
+                        >
+                          📋 Copiar código
+                        </button>
+                        <button
+                          onClick={() => handleCopiarInvitacion(grupo.codigo)}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #7dd3fc',
+                          }}
+                        >
+                          📨 Copiar invitación
+                        </button>
+                        <button
+                          onClick={() => cargarAlumnos(grupo.id)}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: grupoAlumnosAbierto === grupo.id ? '#f0f9ff' : '#f9fafb',
+                            color: grupoAlumnosAbierto === grupo.id ? '#0369a1' : '#344054',
+                            border: '1px solid #d0d5dd',
+                          }}
+                        >
+                          {grupoAlumnosAbierto === grupo.id ? 'Ocultar alumnos' : 'Ver alumnos'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (grupoMaterialesAbierto === grupo.id) {
+                              setGrupoMaterialesAbierto(null);
+                            } else {
+                              setGrupoMaterialesAbierto(grupo.id);
+                              cargarMateriales(grupo.id);
+                            }
+                          }}
+                          disabled={loadingBorrado === grupo.id}
+                          style={{
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            minWidth: 'auto',
+                            backgroundColor: grupoMaterialesAbierto === grupo.id ? '#f0fdf4' : '#f9fafb',
+                            color: grupoMaterialesAbierto === grupo.id ? '#166534' : '#344054',
+                            border: '1px solid #d0d5dd',
+                          }}
+                        >
+                          {grupoMaterialesAbierto === grupo.id ? 'Ocultar materiales' : 'Ver materiales'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sección expandible de alumnos */}
+                {grupoAlumnosAbierto === grupo.id && (
+                  <div
+                    style={{
+                      padding: '20px',
+                      backgroundColor: '#f9fafb',
+                      borderTop: '1px solid #e4e7ec',
+                    }}
+                  >
+                    <h4
+                      style={{
+                        margin: '0 0 16px 0',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#344054',
+                      }}
+                    >
+                      👥 Alumnos de {grupo.nombre}
+                    </h4>
+
+                    {loadingAlumnos ? (
+                      <p style={{ color: '#667085' }}>Cargando alumnos...</p>
+                    ) : alumnos.length === 0 ? (
+                      <div
+                        style={{
+                          padding: '24px',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p style={{ color: '#667085', margin: 0 }}>
+                          Aún no hay alumnos en este grupo.
+                        </p>
+                        <p style={{ color: '#667085', fontSize: '13px', margin: '8px 0 0 0' }}>
+                          Comparte el código del grupo para que se unan.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p
+                          style={{
+                            margin: '0 0 16px 0',
+                            fontSize: '14px',
+                            color: '#667085',
+                          }}
+                        >
+                          Total: <strong>{alumnos.length}</strong> alumno{alumnos.length !== 1 ? 's' : ''}
+                        </p>
+
+                        {/* Lista de alumnos */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: '8px',
+                            marginBottom: '20px',
+                          }}
+                        >
+                          {alumnos.map((alumno) => (
+                            <div
+                              key={alumno.id}
+                              style={{
+                                padding: '12px 16px',
+                                backgroundColor: '#ffffff',
+                                borderRadius: '8px',
+                                border: '1px solid #e4e7ec',
+                              }}
+                            >
+                              <span style={{ color: '#344054' }}>{alumno.nombre}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Último envío */}
+                        {ultimoEnvioGrupo[grupo.id] && (
+                          <div
+                            style={{
+                              marginBottom: '20px',
+                              padding: '16px',
+                              backgroundColor: '#f0f9ff',
+                              borderRadius: '8px',
+                              border: '1px solid #bae6fd',
+                            }}
+                          >
                             <p
                               style={{
                                 margin: '0 0 8px 0',
                                 fontSize: '13px',
-                                color: '#667085',
+                                color: '#0369a1',
                                 fontWeight: '500',
                               }}
                             >
-                              Total: {alumnos.length} alumno{alumnos.length !== 1 ? 's' : ''}
+                              📨 Último envío
                             </p>
-                            <ul
+                            <p
                               style={{
-                                margin: 0,
-                                paddingLeft: '16px',
+                                margin: '0 0 4px 0',
                                 fontSize: '14px',
-                                color: '#344054',
+                                color: '#0c4a6e',
                               }}
                             >
-                              {alumnos.map((alumno) => (
-                                <li key={alumno.id} style={{ marginBottom: '4px' }}>
-                                  {alumno.nombre}
-                                </li>
-                              ))}
-                            </ul>
-
-                            {/* Resumen del último envío (trazabilidad) */}
-                            {ultimoEnvioGrupo[grupo.id] && (
-                              <div
-                                style={{
-                                  marginTop: '12px',
-                                  padding: '12px',
-                                  backgroundColor: '#f0f9ff',
-                                  borderRadius: '6px',
-                                  border: '1px solid #bae6fd',
-                                }}
-                              >
-                                <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#0369a1', fontWeight: '500' }}>
-                                  📨 Último envío:
-                                </p>
-                                <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#0c4a6e' }}>
-                                  {new Date(ultimoEnvioGrupo[grupo.id].fecha_envio).toLocaleString()}
-                                </p>
-                                <p style={{ margin: '0', fontSize: '12px', color: '#075985' }}>
-                                  {ultimoEnvioGrupo[grupo.id].descripcion_opcional} • {ultimoEnvioGrupo[grupo.id].totalDestinatarios} destinatario{ultimoEnvioGrupo[grupo.id].totalDestinatarios !== 1 ? 's' : ''}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Envío de aviso a todos los alumnos del grupo */}
-                            <div
-                              style={{
-                                marginTop: '12px',
-                                padding: '12px',
-                                backgroundColor: '#fefce8',
-                                borderRadius: '6px',
-                                border: '1px solid #fde047',
-                              }}
-                            >
-                              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#854d0e' }}>
-                                📢 Enviar aviso a todos:
-                              </p>
-                              <button
-                                onClick={handleAvisarATodos}
-                                disabled={loadingAvisarATodos}
-                                style={{
-                                  padding: '8px 16px',
-                                  fontSize: '13px',
-                                  minWidth: 'auto',
-                                  backgroundColor: '#eab308',
-                                  color: '#ffffff',
-                                  border: '1px solid #ca8a04',
-                                  borderRadius: '6px',
-                                  width: '100%',
-                                }}
-                              >
-                                {loadingAvisarATodos 
-                                  ? 'Enviando a todos...' 
-                                  : `Avisar a todos (${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''})`
-                                }
-                              </button>
-                              <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#a16207' }}>
-                                ⚠️ Se enviará un email a cada alumno usando su dirección registrada
-                              </p>
-                            </div>
-
-                            {/* Envío de aviso a alumno individual (privacidad: solo nombre visible) */}
-                            <div
-                              style={{
-                                marginTop: '12px',
-                                padding: '12px',
-                                backgroundColor: '#ffffff',
-                                borderRadius: '6px',
-                                border: '1px solid #d0d5dd',
-                              }}
-                            >
-                              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#667085' }}>
-                                📧 Enviar aviso individual:
-                              </p>
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                <select
-                                  value={alumnoSeleccionado?.id || ''}
-                                  onChange={(e) => {
-                                    const alumno = alumnos.find((a) => a.id === e.target.value);
-                                    setAlumnoSeleccionado(alumno || null);
-                                  }}
-                                  disabled={loadingAvisoAlumno || loadingAvisarATodos}
-                                  style={{
-                                    flex: '1',
-                                    minWidth: '150px',
-                                    padding: '8px 12px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #d0d5dd',
-                                    font: 'inherit',
-                                    fontSize: '14px',
-                                  }}
-                                >
-                                  <option value="">Seleccionar alumno...</option>
-                                  {alumnos.map((alumno) => (
-                                    <option key={alumno.id} value={alumno.id}>
-                                      {alumno.nombre}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={handleEnviarAvisoAlumno}
-                                  disabled={!alumnoSeleccionado || loadingAvisoAlumno || loadingAvisarATodos}
-                                  style={{
-                                    padding: '8px 16px',
-                                    fontSize: '13px',
-                                    minWidth: 'auto',
-                                    backgroundColor: '#3b82f6',
-                                    color: '#ffffff',
-                                    border: '1px solid #2563eb',
-                                    borderRadius: '6px',
-                                  }}
-                                >
-                                  {loadingAvisoAlumno ? 'Enviando...' : 'Enviar aviso'}
-                                </button>
-                              </div>
-                              {alumnoSeleccionado && (
-                                <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#059669' }}>
-                                  ✓ Se enviará aviso a: {alumnoSeleccionado.nombre}
-                                </p>
-                              )}
-                            </div>
-                          </>
+                              {new Date(ultimoEnvioGrupo[grupo.id].fecha_envio).toLocaleString('es-ES', {
+                                day: 'numeric',
+                                month: 'long',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                            <p style={{ margin: 0, fontSize: '13px', color: '#075985' }}>
+                              {ultimoEnvioGrupo[grupo.id].descripcion_opcional} •{' '}
+                              {ultimoEnvioGrupo[grupo.id].totalDestinatarios} destinatario
+                              {ultimoEnvioGrupo[grupo.id].totalDestinatarios !== 1 ? 's' : ''}
+                            </p>
+                          </div>
                         )}
-                      </div>
-                    )}
 
-                    {/* Botón Ver materiales */}
-                    <button
-                      onClick={() => {
-                        if (grupoMaterialesAbierto === grupo.id) {
-                          // Cerrar sección
-                          setGrupoMaterialesAbierto(null);
-                        } else {
-                          // Abrir sección y cargar datos
-                          setGrupoMaterialesAbierto(grupo.id);
-                          cargarMateriales(grupo.id);
-                        }
-                      }}
-                      disabled={loadingBorrado === grupo.id}
+                        {/* Envío grupal */}
+                        <div
+                          style={{
+                            marginBottom: '20px',
+                            padding: '16px',
+                            backgroundColor: '#fefce8',
+                            borderRadius: '8px',
+                            border: '1px solid #fde047',
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: '0 0 12px 0',
+                              fontSize: '14px',
+                              color: '#854d0e',
+                              fontWeight: '500',
+                            }}
+                          >
+                            📢 Enviar aviso a todos
+                          </p>
+                          <button
+                            onClick={handleAvisarATodos}
+                            disabled={loadingAvisarATodos}
+                            style={{
+                              width: '100%',
+                              padding: '12px 20px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              backgroundColor: '#eab308',
+                              color: '#ffffff',
+                              border: '1px solid #ca8a04',
+                            }}
+                          >
+                            {loadingAvisarATodos
+                              ? 'Enviando...'
+                              : `Avisar a todos (${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''})`}
+                          </button>
+                          <p
+                            style={{
+                              margin: '12px 0 0 0',
+                              fontSize: '12px',
+                              color: '#a16207',
+                            }}
+                          >
+                            Se enviará un email personalizado a cada alumno.
+                          </p>
+                        </div>
+
+                        {/* Envío individual */}
+                        <div
+                          style={{
+                            padding: '16px',
+                            backgroundColor: '#ffffff',
+                            borderRadius: '8px',
+                            border: '1px solid #e4e7ec',
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: '0 0 12px 0',
+                              fontSize: '14px',
+                              color: '#344054',
+                              fontWeight: '500',
+                            }}
+                          >
+                            📧 Enviar aviso individual
+                          </p>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <select
+                              value={alumnoSeleccionado?.id || ''}
+                              onChange={(e) => {
+                                const alumno = alumnos.find((a) => a.id === e.target.value);
+                                setAlumnoSeleccionado(alumno || null);
+                              }}
+                              disabled={loadingAvisoAlumno || loadingAvisarATodos}
+                              style={{
+                                flex: '1',
+                                minWidth: '150px',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid #d0d5dd',
+                                font: 'inherit',
+                                fontSize: '14px',
+                              }}
+                            >
+                              <option value="">Seleccionar alumno...</option>
+                              {alumnos.map((alumno) => (
+                                <option key={alumno.id} value={alumno.id}>
+                                  {alumno.nombre}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={handleEnviarAvisoAlumno}
+                              disabled={!alumnoSeleccionado || loadingAvisoAlumno || loadingAvisarATodos}
+                              style={{
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                minWidth: 'auto',
+                              }}
+                            >
+                              {loadingAvisoAlumno ? 'Enviando...' : 'Enviar'}
+                            </button>
+                          </div>
+                          {alumnoSeleccionado && (
+                            <p
+                              style={{
+                                margin: '12px 0 0 0',
+                                fontSize: '13px',
+                                color: '#059669',
+                              }}
+                            >
+                              ✓ Se enviará aviso a: <strong>{alumnoSeleccionado.nombre}</strong>
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Sección expandible de materiales */}
+                {grupoMaterialesAbierto === grupo.id && (
+                  <div
+                    style={{
+                      padding: '20px',
+                      backgroundColor: '#f0fdf4',
+                      borderTop: '1px solid #e4e7ec',
+                    }}
+                  >
+                    <h4
                       style={{
-                        marginTop: '8px',
-                        padding: '6px 12px',
-                        fontSize: '13px',
+                        margin: '0 0 16px 0',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#166534',
+                      }}
+                    >
+                      📦 Materiales de {grupo.nombre}
+                    </h4>
+
+                    <input
+                      type="file"
+                      ref={(el) => (fileInputRefs.current[grupo.id] = el)}
+                      onChange={(e) => {
+                        const archivo = e.target.files?.[0];
+                        if (archivo) {
+                          handleSubirArchivo(grupo.id, archivo);
+                        }
+                        e.target.value = '';
+                      }}
+                      style={{ display: 'none' }}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                    />
+
+                    <button
+                      onClick={() => fileInputRefs.current[grupo.id]?.click()}
+                      disabled={subiendoArchivo === grupo.id || loadingBorrado === grupo.id}
+                      style={{
+                        marginBottom: '16px',
+                        padding: '10px 20px',
+                        fontSize: '14px',
                         minWidth: 'auto',
-                        backgroundColor: '#f0fdf4',
+                        backgroundColor: '#ffffff',
                         color: '#166534',
                         border: '1px solid #86efac',
                       }}
                     >
-                      {grupoMaterialesAbierto === grupo.id ? 'Ocultar materiales' : 'Ver materiales'}
+                      {subiendoArchivo === grupo.id ? 'Subiendo...' : '+ Subir archivo'}
                     </button>
 
-                    {/* Sección expandible de materiales */}
-                    {grupoMaterialesAbierto === grupo.id && (
+                    {errorMateriales[grupo.id] && (
                       <div
                         style={{
-                          marginTop: '12px',
-                          padding: '12px',
-                          backgroundColor: '#f0fdf4',
+                          marginBottom: '16px',
+                          padding: '12px 16px',
+                          backgroundColor: '#fef2f2',
+                          border: '1px solid #fecaca',
                           borderRadius: '8px',
-                          border: '1px solid #bbf7d0',
+                          color: '#dc2626',
+                          fontSize: '13px',
                         }}
                       >
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#166534' }}>
-                          Materiales de {grupo.nombre}
-                        </h4>
-
-                        {/* Input file oculto */}
-                        <input
-                          type="file"
-                          ref={(el) => (fileInputRefs.current[grupo.id] = el)}
-                          onChange={(e) => {
-                            const archivo = e.target.files?.[0];
-                            if (archivo) {
-                              handleSubirArchivo(grupo.id, archivo);
-                            }
-                            e.target.value = '';
-                          }}
-                          style={{ display: 'none' }}
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                        />
-
-                        {/* Botón subir archivo */}
-                        <button
-                          onClick={() => fileInputRefs.current[grupo.id]?.click()}
-                          disabled={subiendoArchivo === grupo.id || loadingBorrado === grupo.id}
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '13px',
-                            minWidth: 'auto',
-                            backgroundColor: '#ffffff',
-                            color: '#166534',
-                            border: '1px solid #86efac',
-                            marginBottom: '12px',
-                          }}
-                        >
-                          {subiendoArchivo === grupo.id ? 'Subiendo...' : '+ Subir archivo'}
-                        </button>
-
-                        {/* Mensaje de error inline */}
-                        {errorMateriales[grupo.id] && (
-                          <div
-                            style={{
-                              marginBottom: '12px',
-                              padding: '8px 12px',
-                              backgroundColor: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              borderRadius: '6px',
-                              color: '#dc2626',
-                              fontSize: '13px',
-                            }}
-                          >
-                            ⚠️ {errorMateriales[grupo.id]}
-                            <br />
-                            <span style={{ fontSize: '12px', color: '#991b1b' }}>
-                              Puedes intentar subir archivos de todos modos.
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Lista de materiales */}
-                        {loadingMateriales[grupo.id] ? (
-                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
-                            Cargando materiales...
-                          </p>
-                        ) : materialesPorGrupo[grupo.id]?.length === 0 ? (
-                          <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>
-                            Aún no hay materiales en este grupo.
-                          </p>
-                        ) : (
-                          <ul
-                            style={{
-                              margin: 0,
-                              padding: 0,
-                              listStyle: 'none',
-                              fontSize: '14px',
-                            }}
-                          >
-                            {materialesPorGrupo[grupo.id]?.map((material) => (
-                              <li
-                                key={material.id}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '8px 0',
-                                  borderBottom: '1px solid #bbf7d0',
-                                }}
-                              >
-                                <span style={{ color: '#344054' }}>
-                                  📄 {material.nombre_archivo}{' '}
-                                  <span style={{ color: '#6b7280', fontSize: '12px' }}>
-                                    ({formatearTamaño(material.tamaño_bytes)})
-                                  </span>
-                                </span>
-                                <button
-                                  onClick={() => handleEliminarMaterial(grupo.id, material)}
-                                  disabled={loadingBorrado === grupo.id}
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '12px',
-                                    minWidth: 'auto',
-                                    backgroundColor: '#fef2f2',
-                                    color: '#dc2626',
-                                    border: '1px solid #fecaca',
-                                    borderRadius: '4px',
-                                  }}
-                                >
-                                  Eliminar
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        ⚠️ {errorMateriales[grupo.id]}
                       </div>
                     )}
-                  </>
+
+                    {loadingMateriales[grupo.id] ? (
+                      <p style={{ color: '#667085' }}>Cargando materiales...</p>
+                    ) : materialesPorGrupo[grupo.id]?.length === 0 ? (
+                      <div
+                        style={{
+                          padding: '24px',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p style={{ color: '#667085', margin: 0 }}>
+                          Aún no hay materiales en este grupo.
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {materialesPorGrupo[grupo.id]?.map((material) => (
+                          <div
+                            key={material.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '12px 16px',
+                              backgroundColor: '#ffffff',
+                              borderRadius: '8px',
+                              border: '1px solid #e4e7ec',
+                            }}
+                          >
+                            <span style={{ color: '#344054' }}>
+                              📄 {material.nombre_archivo}{' '}
+                              <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                                ({formatearTamaño(material.tamaño_bytes)})
+                              </span>
+                            </span>
+                            <button
+                              onClick={() => handleEliminarMaterial(grupo.id, material)}
+                              disabled={loadingBorrado === grupo.id}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                minWidth: 'auto',
+                                backgroundColor: '#fef2f2',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
