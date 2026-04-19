@@ -32,6 +32,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { generarCodigoGrupo } from '../utils/generarCodigoGrupo';
 import {
@@ -41,11 +42,13 @@ import {
   formatearTamaño,
 } from '../services/storage';
 import { enviarCorreoReal } from '../services/email';
+import { logoutProfesor } from '../services/auth';
 
 // TODO: Reemplazar por el profesor autenticado cuando implementemos login real
 const PROFESOR_ID_TEMPORAL = '8f3de77b-11e4-4fd6-a45c-068368e540a9';
 
 export default function Panel() {
+  const navigate = useNavigate();
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [notaInterna, setNotaInterna] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -845,10 +848,34 @@ export default function Panel() {
     setLoadingAvisarATodos(false);
   };
 
+  const handleLogout = async () => {
+    const { error } = await logoutProfesor();
+    if (!error) {
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="container">
-      <h1>Panel del profesor</h1>
-      <p>Crea un grupo y obtén un código para compartir con tus alumnos.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1>Panel del profesor</h1>
+          <p>Crea un grupo y obtén un código para compartir con tus alumnos.</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '8px 16px',
+            fontSize: '14px',
+            minWidth: 'auto',
+            backgroundColor: '#f2f4f7',
+            color: '#344054',
+            border: '1px solid #d0d5dd',
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
 
       <form onSubmit={handleCrearGrupo}>
         <input

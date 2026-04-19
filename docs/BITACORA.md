@@ -1223,5 +1223,78 @@ Cada entrada sigue esta estructura:
 
 ---
 
-**Total de sesiones registradas:** 22  
+## 2026-04-19 - Bloque: Autenticación base del profesor con Supabase Auth
+
+**Objetivo:** Preparar la base mínima de autenticación real del profesor con Supabase Auth, incluyendo login/registro, detección de sesión, protección de rutas y logout.  
+**Estado:** ✅ Completado
+
+### Acciones realizadas
+- [x] **Creado `docs/ESTADO_ACTUAL.md`**: Documento vivo y corto con resumen operativo del sistema (stack, flujos funcionando, estructura de tablas, decisiones vigentes, problemas abiertos, próximos pasos). Sirve como entrada rápida sin leer toda la bitácora histórica.
+
+- [x] **Creado `src/services/auth.js`**: Servicio completo de autenticación con funciones:
+  - `registrarProfesor(email, password)` - registro con creación automática en tabla `profesores`
+  - `loginProfesor(email, password)` - inicio de sesión
+  - `logoutProfesor()` - cierre de sesión
+  - `obtenerSesion()` - obtener sesión actual
+  - `obtenerUsuarioActual()` - obtener usuario autenticado
+  - `suscribirCambiosAuth(callback)` - escuchar cambios de auth en tiempo real
+  - `haySesionActiva()` - verificar si hay sesión
+
+- [x] **Creado `src/pages/LoginProfesor.jsx`**: Página de login/registro unificada con:
+  - Toggle entre modo login y registro
+  - Validaciones básicas (email, contraseña mínimo 6 caracteres)
+  - Feedback de errores y éxito
+  - Redirección automática al panel tras login exitoso
+  - Redirección al panel si ya hay sesión activa
+  - Enlace para volver al inicio
+
+- [x] **Actualizado `src/App.jsx`**: Router con protección de rutas:
+  - `/` - Home (flujo alumno, público)
+  - `/login` - LoginProfesor (redirige a `/panel` si ya está logueado)
+  - `/panel` - Panel (protegido, requiere auth)
+  - Detección global de sesión con `useEffect`
+  - Suscripción a cambios de auth en tiempo real
+  - Componentes `RutaProtegida` y `RutaPublicaProfesor` para control de acceso
+
+- [x] **Actualizado `src/pages/Panel.jsx`**:
+  - Añadido botón "Cerrar sesión" en el header
+  - Handler `handleLogout` que cierra sesión y redirige a `/login`
+  - Import de `useNavigate` y `logoutProfesor`
+
+### Archivos creados/modificados
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `docs/ESTADO_ACTUAL.md` | Creado | Resumen operativo vivo del sistema |
+| `src/services/auth.js` | Creado | Servicio de autenticación completo con Supabase Auth |
+| `src/pages/LoginProfesor.jsx` | Creado | Página de login/registro unificada |
+| `src/App.jsx` | Modificado | Router con protección de rutas y detección de sesión |
+| `src/pages/Panel.jsx` | Modificado | Botón de logout y handler de cierre de sesión |
+
+### Notas para sesiones futuras
+- **Flujo de autenticación funcionando**:
+  1. Usuario no logueado intenta acceder a `/panel` → redirige a `/login`
+  2. En `/login` puede crear cuenta o iniciar sesión
+  3. Tras login exitoso → redirige a `/panel`
+  4. En el panel puede usar "Cerrar sesión" para salir
+  5. Si cierra sesión, al recargar `/panel` se redirige a `/login`
+
+- **Limitaciones conocidas**:
+  - El panel sigue usando `PROFESOR_ID_TEMPORAL` fijo (pendiente: usar ID real del usuario autenticado)
+  - Sin recuperación de contraseña
+  - Sin confirmación de email obligatoria
+  - RLS permisivas (deuda técnica de seguridad)
+
+- **Cómo probar manualmente**:
+  1. Ir a `/login` → crear una cuenta con email y contraseña (mín. 6 chars)
+  2. Verificar mensaje "Cuenta creada correctamente. Redirigiendo..."
+  3. Debería aparecer el panel del profesor
+  4. Probar cerrar sesión con el botón superior derecho
+  5. Intentar acceder a `/panel` sin estar logueado → debería redirigir a `/login`
+  6. Iniciar sesión con las credenciales creadas → debería redirigir al panel
+
+- **Próximo paso prioritario**: Actualizar el panel para usar el ID real del profesor autenticado (reemplazar `PROFESOR_ID_TEMPORAL` por `user.id` de Supabase Auth) para que los grupos se asocien al usuario correcto.
+
+---
+
+**Total de sesiones registradas:** 23  
 **Última actualización:** 19 de abril de 2026
