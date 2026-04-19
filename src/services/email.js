@@ -1,4 +1,4 @@
-<!--
+/**<!--
 ================================================================================
 PROPOSITO DEL ARCHIVO
 ================================================================================
@@ -60,7 +60,7 @@ Cuando se implemente el backend seguro:
 5. Mantener misma interfaz de datos para minimizar cambios
 
 ================================================================================
--->
+-->**/
 
 /**
  * Simula el envío de un correo de prueba.
