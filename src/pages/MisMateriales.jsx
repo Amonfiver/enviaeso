@@ -81,24 +81,36 @@ export default function MisMateriales() {
     setTipoMensaje('');
 
     try {
-      const { url, error } = await obtenerUrlDescarga(material.url_storage, 300); // 5 minutos de validez
+      // URL con validez de 5 minutos (300s)
+      const { url, error } = await obtenerUrlDescarga(material.url_storage, 300);
 
       if (error || !url) {
         throw new Error(error || 'No se pudo generar el enlace de descarga');
       }
 
-      // Crear enlace temporal para forzar descarga
+      // Estrategia de descarga forzada:
+      // 1. Crear enlace <a> con atributo download
+      // 2. Abrir en nueva pestaña si el navegador no respeta el download
+      // 3. Algunos navegadores móviles pueden previsualizar PDFs a pesar del atributo
+      
       const link = document.createElement('a');
       link.href = url;
-      link.download = material.nombre_archivo; // Sugerir nombre de archivo
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
+      link.download = material.nombre_archivo;
+      link.target = '_blank'; // Fallback: abrir en nueva pestaña si no descarga
+      link.rel = 'noopener noreferrer';
       
-      // Limpiar después de un momento
-      setTimeout(() => {
-        document.body.removeChild(link);
-      }, 100);
+      // Intentar descarga programática
+      document.body.appendChild(link);
+      
+      // En móviles, a veces necesitamos hacer click después de un pequeño delay
+      requestAnimationFrame(() => {
+        link.click();
+        setTimeout(() => {
+          if (link.parentNode) {
+            document.body.removeChild(link);
+          }
+        }, 100);
+      });
 
       setMensaje(`Descargando "${material.nombre_archivo}"...`);
       setTipoMensaje('success');

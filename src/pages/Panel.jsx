@@ -93,6 +93,15 @@ export default function Panel() {
   // Estado para envío de aviso a todos los alumnos de un grupo
   const [loadingAvisarATodos, setLoadingAvisarATodos] = useState(false);
 
+  // Estado para modal de confirmación de envío masivo
+  const [modalConfirmacion, setModalConfirmacion] = useState({
+    visible: false,
+    titulo: '',
+    mensaje: '',
+    onConfirmar: null,
+    onCancelar: null,
+  });
+
   // Estado para último envío del grupo (trazabilidad mínima)
   const [ultimoEnvioGrupo, setUltimoEnvioGrupo] = useState({});
 
@@ -744,6 +753,22 @@ Enviado desde EnviaEso • enviaeso.com`;
     }
   };
 
+  // Función para mostrar modal de confirmación
+  const mostrarModalConfirmacion = (titulo, mensaje, onConfirmar) => {
+    setModalConfirmacion({
+      visible: true,
+      titulo,
+      mensaje,
+      onConfirmar,
+      onCancelar: () => setModalConfirmacion(prev => ({ ...prev, visible: false })),
+    });
+  };
+
+  // Función para cerrar modal
+  const cerrarModalConfirmacion = () => {
+    setModalConfirmacion(prev => ({ ...prev, visible: false }));
+  };
+
   const handleAvisarATodos = async () => {
     if (alumnos.length === 0) {
       setMensaje('No hay alumnos en este grupo para enviar avisos.');
@@ -758,17 +783,21 @@ Enviado desde EnviaEso • enviaeso.com`;
       return;
     }
 
-    const confirmacion = window.confirm(
-      `¿Estás seguro de que quieres enviar un aviso a todos los alumnos de este grupo?\n\n` +
+    // Mostrar modal de confirmación en lugar de window.confirm
+    mostrarModalConfirmacion(
+      'Confirmar envío masivo',
+      `Vas a enviar un aviso a todos los alumnos de este grupo.\n\n` +
       `Grupo: ${grupoActual.nombre}\n` +
       `Total de destinatarios: ${alumnos.length} alumno${alumnos.length !== 1 ? 's' : ''}\n\n` +
-      `Se enviará un email personalizado a cada alumno con un enlace directo a sus materiales.`
+      `Se enviará un email personalizado a cada alumno con un enlace directo a sus materiales.`,
+      () => {
+        cerrarModalConfirmacion();
+        ejecutarEnvioMasivo(grupoActual);
+      }
     );
+  };
 
-    if (!confirmacion) {
-      return;
-    }
-
+  const ejecutarEnvioMasivo = async (grupoActual) => {
     setLoadingAvisarATodos(true);
     setMensaje('Enviando avisos... Esto puede tardar unos segundos.');
     setTipoMensaje('');
@@ -1927,6 +1956,102 @@ Enviado desde EnviaEso • enviaeso.com`;
           </div>
         )}
       </section>
+
+      {/* Modal de confirmación */}
+      {modalConfirmacion.visible && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            zIndex: 1000,
+          }}
+          onClick={cerrarModalConfirmacion}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: '0 0 16px 0',
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#101828',
+              }}
+            >
+              {modalConfirmacion.titulo}
+            </h3>
+            <p
+              style={{
+                margin: '0 0 24px 0',
+                fontSize: '14px',
+                color: '#344054',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-line',
+              }}
+            >
+              {modalConfirmacion.mensaje}
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                flexDirection: 'column',
+              }}
+            >
+              <button
+                onClick={modalConfirmacion.onConfirmar}
+                disabled={loadingAvisarATodos}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  backgroundColor: '#eab308',
+                  color: '#ffffff',
+                  border: '1px solid #ca8a04',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                {loadingAvisarATodos ? 'Enviando...' : 'Confirmar envío'}
+              </button>
+              <button
+                onClick={cerrarModalConfirmacion}
+                disabled={loadingAvisarATodos}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  backgroundColor: '#f9fafb',
+                  color: '#344054',
+                  border: '1px solid #d0d5dd',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

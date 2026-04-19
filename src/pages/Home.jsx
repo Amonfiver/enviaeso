@@ -32,6 +32,8 @@ export default function Home() {
   const [codigo, setCodigo] = useState('');
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
+  const [aceptaComunicaciones, setAceptaComunicaciones] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [tipoMensaje, setTipoMensaje] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,10 +42,19 @@ export default function Home() {
     setCodigo('');
     setNombre('');
     setEmail('');
+    setAceptaPrivacidad(false);
+    setAceptaComunicaciones(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validación de consentimiento obligatorio
+    if (!aceptaPrivacidad) {
+      setMensaje('Debes aceptar la política de privacidad para continuar.');
+      setTipoMensaje('error');
+      return;
+    }
 
     setMensaje('');
     setTipoMensaje('');
@@ -72,12 +83,21 @@ export default function Home() {
       }
 
       // 2. Insertar alumno en el grupo
+      // NOTA: Las columnas acepta_privacidad y acepta_comunicaciones
+      // se deben añadir a la tabla 'alumnos' en Supabase para persistir
+      // estos valores. Mientras tanto, solo validamos en frontend.
+      const datosAlumno = {
+        grupo_id: grupo.id,
+        nombre: nombreNormalizado,
+        email: emailNormalizado,
+      };
+
+      // Si las columnas existen en BD, descomentar:
+      // datosAlumno.acepta_privacidad = aceptaPrivacidad;
+      // datosAlumno.acepta_comunicaciones = aceptaComunicaciones;
+
       const { error: errorAlumno } = await supabase.from('alumnos').insert([
-        {
-          grupo_id: grupo.id,
-          nombre: nombreNormalizado,
-          email: emailNormalizado,
-        },
+        datosAlumno,
       ]);
 
       if (errorAlumno) {
@@ -359,6 +379,82 @@ export default function Home() {
                   >
                     🔒 No se comparte con nadie. Solo para enviarte avisos.
                   </p>
+                </div>
+
+                {/* Consentimiento legal - Obligatorio */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      fontSize: '12px',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={aceptaPrivacidad}
+                      onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+                      required
+                      style={{
+                        marginTop: '2px',
+                        width: '16px',
+                        height: '16px',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>
+                      Acepto la{' '}
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert('Política de privacidad: Tus datos se usan solo para gestionar el acceso a materiales y enviarte avisos. No se comparten con terceros.');
+                        }}
+                        style={{ color: '#1570ef', textDecoration: 'underline' }}
+                      >
+                        política de privacidad
+                      </a>{' '}
+                      y el tratamiento de mis datos personales.{' '}
+                      <span style={{ color: '#dc2626' }}>*</span>
+                    </span>
+                  </label>
+                </div>
+
+                {/* Consentimiento legal - Opcional */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      fontSize: '12px',
+                      color: '#6b7280',
+                      cursor: 'pointer',
+                      lineHeight: '1.5',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={aceptaComunicaciones}
+                      onChange={(e) => setAceptaComunicaciones(e.target.checked)}
+                      style={{
+                        marginTop: '2px',
+                        width: '16px',
+                        height: '16px',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>
+                      Acepto recibir comunicaciones informativas y promocionales de EnviaEso 
+                      y otros proyectos del responsable del tratamiento.
+                    </span>
+                  </label>
                 </div>
 
                 <button

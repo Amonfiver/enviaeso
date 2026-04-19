@@ -1,0 +1,4 @@
+# Netlify SPA redirects - todas las rutas internas redirigen a index.html
+# Esto permite que React Router maneje el routing en el cliente
+
+/*    /index.html   200

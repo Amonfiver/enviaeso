@@ -205,12 +205,18 @@ export const formatearTamaño = (bytes) => {
 
 /**
  * Obtiene una URL firmada para descargar un archivo de Storage.
- * La URL es válida por un tiempo limitado (por defecto 60 segundos).
+ * La URL es válida por un tiempo limitado (por defecto 300 segundos = 5 min).
+ * 
+ * NOTA: La descarga forzada depende del navegador. Algunos navegadores móviles
+ * pueden previsualizar ciertos formatos (PDF, imágenes) en lugar de descargar.
+ * En el frontend se usa el atributo 'download' en el enlace para sugerir
+ * el nombre original del archivo.
+ * 
  * @param {string} filePath - Ruta del archivo en Storage
- * @param {number} expiresIn - Segundos de validez de la URL (default: 60)
+ * @param {number} expiresIn - Segundos de validez de la URL (default: 300)
  * @returns {Promise<{url: string|null, error: string|null}>}
  */
-export const obtenerUrlDescarga = async (filePath, expiresIn = 60) => {
+export const obtenerUrlDescarga = async (filePath, expiresIn = 300) => {
   try {
     const { data, error } = await supabase
       .storage

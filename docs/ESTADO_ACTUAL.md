@@ -167,8 +167,15 @@ Plataforma para compartir documentación, materiales y archivos de forma organiz
 | 🟡 Media | RLS permisivas (deuda técnica) | Seguridad superficial |
 | 🟡 Media | Nombres de tablas no alineados con UX (profesores/alumnos vs enviar/recibir) | Deuda técnica futura |
 | 🟢 Baja | Sin rate-limiting en envío de emails | Riesgo de spam si se expone |
+| 🟢 Baja | Consentimiento legal solo validado en frontend | Persistencia pendiente en BD |
 
 *Nota: Autenticación real implementada. Home.jsx reorganizado con enfoque Recibir/Enviar.*
+
+### FIXES Recientes (Producción Netlify)
+1. ✅ **Rutas SPA en Netlify:** Añadido `public/_redirects` para resolver rutas internas correctamente
+2. ✅ **Descarga forzada:** URLs firmadas con 5min validez + atributo `download` + fallback `_blank`
+3. ✅ **Modal de confirmación:** Reemplazado `window.confirm` por modal React integrado en Panel
+4. ✅ **Consentimiento legal:** Checkboxes de privacidad (obligatorio) y comunicaciones (opcional) en formulario
 
 ---
 
