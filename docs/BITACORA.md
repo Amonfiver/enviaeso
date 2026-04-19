@@ -98,7 +98,12 @@ Cada entrada sigue esta estructura:
 - **Sin ruptura técnica:** Tablas SQL y lógica interna permanecen iguales
 - **Integración limpia:** Formulario de apuntarse integrado, no duplicado
 - **Jerarquía visual clara:** Hero + dos cards principales + CTAs evidentes
-- **Responsive correcto:** Grid que se apila en móvil
+- **Responsive mobile-first:** Diseño prioritario para móvil con adaptación a desktop
+
+### Responsive mobile-first implementado
+- **Home:** Padding reducido en móvil, tipografía fluida con clamp(), botones táctiles grandes (min 48px), cards apiladas verticalmente
+- **AccesoAlumno:** Inputs con altura mínima 48px, padding táctil amplio, textos más compactos en móvil
+- **MisMateriales:** Layout vertical de tarjetas de materiales, nombre de archivo con word-break, botón de descarga full-width, fechas abreviadas
 
 ### Archivos modificados
 | Archivo | Acción | Descripción |
