@@ -365,13 +365,13 @@ export default function LoginProfesor() {
         >
           ¿Necesitas ayuda? Soporte:{' '}
           <a
-            href="mailto:amonfiver@gmail.com"
+            href="mailto:amoneyfiver@gmail.com"
             style={{
               color: '#64748b',
               textDecoration: 'underline',
             }}
           >
-            amonfiver@gmail.com
+            amoneyfiver@gmail.com
           </a>
         </p>
       </div>
