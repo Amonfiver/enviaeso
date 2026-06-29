@@ -44,29 +44,25 @@ export default function AccesoAlumno() {
     if (codigoParam && emailParam) {
       setCodigoGrupo(codigoParam);
       setEmail(emailParam);
-      // Intentar acceso automático si ambos parámetros existen
       setAutoAccesoIntentado(true);
-    }
-  }, [searchParams]);
-
-  // Intentar acceso automático cuando los estados se actualicen
-  useEffect(() => {
-    if (autoAccesoIntentado && codigoGrupo && email) {
-      handleValidarAcceso();
+      handleValidarAcceso({
+        codigoOverride: codigoParam,
+        emailOverride: emailParam,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigoGrupo, email, autoAccesoIntentado]);
+  }, [searchParams]);
 
-  const handleValidarAcceso = async () => {
+  const handleValidarAcceso = async ({ codigoOverride, emailOverride } = {}) => {
     setLoading(true);
     setMensaje('');
     setTipoMensaje('');
 
-    const codigoNormalizado = codigoGrupo.trim().toUpperCase();
-    const emailNormalizado = email.trim().toLowerCase();
+    const codigoNormalizado = (codigoOverride ?? codigoGrupo).trim().toUpperCase();
+    const emailNormalizado = (emailOverride ?? email).trim().toLowerCase();
 
     if (!codigoNormalizado || !emailNormalizado) {
-      setMensaje('El código de grupo y el email son obligatorios.');
+      setMensaje('Introduce el código de grupo y tu email para acceder.');
       setTipoMensaje('error');
       setLoading(false);
       return;
@@ -96,7 +92,7 @@ export default function AccesoAlumno() {
         .single();
 
       if (errorAlumno || !alumno) {
-        setMensaje('No se encontró tu registro en este grupo. Verifica el código y tu email.');
+        setMensaje('No hemos encontrado este email en el grupo. Revisa el correo o pide al profesor que te vuelva a enviar el acceso.');
         setTipoMensaje('error');
         setLoading(false);
         return;
